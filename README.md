@@ -74,9 +74,14 @@ gitdigest -u https://github.com/owner/repo -e "*.csv" -e "*.log"
 ```json
 {
   "url": "https://github.com/NnamdiOdozi/mlx-digit-app",
+  "token": "string",
+  "branch": "main",
+  "max_size": 10485760,
   "word_count": 500,
   "call_llm_api": true,
-  "exclude_patterns": null
+  "exclude_patterns": [
+    "string"
+  ]
 }
 ```
 
