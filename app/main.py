@@ -116,13 +116,15 @@ def run_gitdigest(
         for pat in patterns:
             cmd.extend(["-e", pat])
 
+        print(f"DEBUG cmd: {cmd}", file=sys.stderr)
         result = subprocess.run(cmd, capture_output=True, text=True)
+        print(f"DEBUG rc={result.returncode} stderr={result.stderr[:500]}", file=sys.stderr)
 
         if result.returncode == 0:
             print(f"Successfully cloned branch: {target_branch}")
             break
         else:
-            print(f"Branch '{target_branch}' not found or empty, trying next...", file=sys.stderr)
+            print(f"Branch '{target_branch}' failed (rc={result.returncode})", file=sys.stderr)
             continue
 
     result_dict = {
