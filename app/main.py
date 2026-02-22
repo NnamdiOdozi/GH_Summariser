@@ -1,8 +1,10 @@
 import os
 import re
+import shutil
 import subprocess
 import sys
 import json
+import argparse
 from urllib.parse import urlparse
 
 import dotenv
@@ -62,36 +64,43 @@ def run_gitdigest(
 
     parsed = parse_github_url(url)
 
-    # Use provided branch, or fall back to branch from URL, or default to "main"
-    target_branch = branch or parsed.get("branch") or "main"
+    # Determine branch: try user-specified, then URL branch, then fallbacks
+    initial_branch = branch or parsed.get("branch")
+    branch_fallbacks = []
+    if initial_branch:
+        branch_fallbacks = [initial_branch]
+    branch_fallbacks.extend(["main", "master"])
 
-    # Build clean GitHub URL without branch/path
-    repo_url = f"https://github.com/{parsed['owner']}/{parsed['repo']}"
+    # Try each branch until one works
+    output_file = None
+    for target_branch in branch_fallbacks:
+        # Build clean GitHub URL without branch/path
+        repo_url = f"https://github.com/{parsed['owner']}/{parsed['repo']}"
 
-    output_file = f"{parsed['owner']}-{parsed['repo']}.txt"
+        output_file = f"{parsed['owner']}-{parsed['repo']}.txt"
 
-    cmd = [
-        "uvx", "gitingest",
-        repo_url,
-        "-o", output_file,
-    ]
+        # Try gitingest directly (pip-installed), fall back to uvx gitingest
+        if shutil.which("gitingest"):
+            cmd = ["gitingest", repo_url, "-o", output_file]
+        else:
+            cmd = ["uvx", "gitingest", repo_url, "-o", output_file]
 
-    if target_branch:
         cmd.extend(["-b", target_branch])
 
-    if token:
-        cmd.extend(["-t", token])
+        if token:
+            cmd.extend(["-t", token])
 
-    if max_size:
-        cmd.extend(["-s", str(max_size)])
+        if max_size:
+            cmd.extend(["-s", str(max_size)])
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
 
-    print(result.stdout)
-    if result.stderr:
-        print(result.stderr, file=sys.stderr)
-
-    result.check_returncode()
+        if result.returncode == 0:
+            print(f"Successfully cloned branch: {target_branch}")
+            break
+        else:
+            print(f"Branch '{target_branch}' not found or empty, trying next...", file=sys.stderr)
+            continue
 
     result_dict = {
         "output_file": output_file,
@@ -151,7 +160,7 @@ def call_doubleword_api(prompt: str, digest_content: str) -> str:
         ],
     }
 
-    response = requests.post(url, headers=headers, json=payload, timeout=120)
+    response = requests.post(url, headers=headers, json=payload, timeout=300)
     response.raise_for_status()
 
     result = response.json()
@@ -159,13 +168,29 @@ def call_doubleword_api(prompt: str, digest_content: str) -> str:
 
 
 def main():
-    # This is not meant to be a production entry point, just a quick test harness for development. It doesn't call the LLM API by default to avoid unnecessary calls during development, but you can set call_llm_api=True to test the summarization as well.
+    parser = argparse.ArgumentParser(
+        description="Ingest a GitHub repository and optionally summarize with LLM"
+    )
+    parser.add_argument("-u", "--url", required=True, help="GitHub repository URL")
+    parser.add_argument("-t", "--token", default=None, help="GitHub Personal Access Token (required for private repos)")
+    parser.add_argument("-b", "--branch", default=None, help="Branch name (defaults to main)")
+    parser.add_argument("-w", "--word-count", type=int, default=DEFAULT_WORD_COUNT, help=f"Summary word count (default: {DEFAULT_WORD_COUNT})")
+    parser.add_argument("-c", "--call-llm-api", action="store_true", help="Call LLM API for summarization")
+    parser.add_argument("-m", "--max-size", type=int, default=DEFAULT_MAX_SIZE, help=f"Max file size in bytes (default: {DEFAULT_MAX_SIZE})")
+
+    args = parser.parse_args()
+
     dotenv.load_dotenv(".env.claude")
 
-    GITHUB_TOKEN = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
-    url = "https://github.com/doublewordai/batch-skill/tree/main"
+    result = run_gitdigest(
+        url=args.url,
+        token=args.token,
+        branch=args.branch,
+        word_count=args.word_count,
+        call_llm_api=args.call_llm_api,
+        max_size=args.max_size,
+    )
 
-    result = run_gitdigest(url, GITHUB_TOKEN, word_count=500)
     print(f"Output saved to: {result['output_file']}")
 
     if "summary" in result:

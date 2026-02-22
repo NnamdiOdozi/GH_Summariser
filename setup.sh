@@ -51,6 +51,16 @@ if [ ! -d "$VENV_PATH" ]; then
         echo "? Failed to create virtual environment"
         exit 1
     fi
+
+    # Install uv in the new venv
+    echo "?? Installing uv in virtual environment..."
+    $VENV_PATH/bin/pip install uv
+    if [ $? -eq 0 ]; then
+        echo "? Successfully installed uv"
+    else
+        echo "? Failed to install uv"
+        exit 1
+    fi
 else
     if [ ! -f "$VENV_PYTHON" ]; then
         echo "? Python not found in virtual environment at $VENV_PYTHON"
@@ -61,6 +71,21 @@ fi
 
 # Activate virtual environment
 source "$VENV_PATH/bin/activate"
+
+# Install uv if not available
+echo "?? Checking for uv..."
+if ! command -v uv &> /dev/null; then
+    echo "??  uv not found, installing..."
+    pip install uv
+    if [ $? -eq 0 ]; then
+        echo "? uv installed"
+    else
+        echo "? Failed to install uv"
+        exit 1
+    fi
+else
+    echo "? uv already available"
+fi
 
 # Sync dependencies with uv
 echo "?? Syncing dependencies with uv..."

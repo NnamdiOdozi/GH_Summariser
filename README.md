@@ -55,6 +55,20 @@ The API runs on `http://127.0.0.1:8001` (Swagger UI at `/docs`).
   "call_llm_api": true
 }
 ```
+## Example CURL request
+
+curl -X 'POST' \
+  'http://localhost:8000/api/v1/gitdigest' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://github.com/NnamdiOdozi/GH_Summariser",
+  "token": "",
+  "branch": "",
+  "max_size": 10485760,
+  "word_count": 500,
+  "call_llm_api": true
+}'
 
 ## Output
 

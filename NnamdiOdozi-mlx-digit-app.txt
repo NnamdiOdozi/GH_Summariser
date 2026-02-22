@@ -1,0 +1,1558 @@
+Directory structure:
+└── nnamdiodozi-mlx-digit-app/
+    ├── README.html
+    ├── README.md
+    ├── docker-compose.yaml
+    ├── requirements.txt
+    ├── runtests.py
+    ├── .dockerignore
+    ├── app/
+    │   ├── __init__.py
+    │   ├── CNNModelMNIST.py
+    │   ├── Dockerfile
+    │   ├── main.py
+    │   ├── mnist_cnn.pth
+    │   ├── utils.py
+    │   └── data/
+    │       └── MNIST/
+    │           └── raw/
+    │               ├── t10k-images-idx3-ubyte
+    │               ├── t10k-images-idx3-ubyte.gz
+    │               ├── t10k-labels-idx1-ubyte
+    │               ├── t10k-labels-idx1-ubyte.gz
+    │               ├── train-images-idx3-ubyte.gz
+    │               ├── train-labels-idx1-ubyte
+    │               └── train-labels-idx1-ubyte.gz
+    ├── db/
+    │   ├── create_table.sql
+    │   └── init.sql
+    ├── tests/
+    │   ├── __init__.py
+    │   ├── test_db.py
+    │   ├── test_model.py
+    │   └── test_preprocessing.py
+    ├── .devcontainer/
+    │   └── devcontainer.json
+    └── .github/
+        └── workflows/
+            └── deploy.yml
+
+================================================
+FILE: README.html
+================================================
+<!DOCTYPE html>
+<html>
+<head>
+<title>README.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<p>This is a web app that recognises handwritten digits between 0 and 9.  The prediction is made using a Convolutional Neural Network (CNN) trained on the well-known MNIST database.</p>
+<p>The user draws a digit on the slate and then presses the predict button.  If the app predicts wrong, the user types in the correct number and presses the submit feedback button. To try another digit, click on the delete icon below the slate and draw another digit as before.  A history of previous digits drawn by the user is shown in a table below the slate together with a running prediction accuracy of the app. However this table is lost once the app is refreshed. Persistent storage of past predictions is done in a Postgres database hosted on the same web server,</p>
+<p>Try it out here: URL: http://138.199.200.113:8501</p>
+<p><img src="https://github.com/user-attachments/assets/fafc085f-82c0-4bb0-805d-01b5934e387d" alt="image"></p>
+<h2 id="project-structure">Project Structure</h2>
+<p><img src="https://github.com/user-attachments/assets/c1578f63-b976-426c-9739-3267c0a1a002" alt="image"></p>
+<p><img src="https://github.com/user-attachments/assets/d586ff46-ba9a-4b70-99ae-42d2b03a41c1" alt="image"></p>
+<p><img src="https://github.com/user-attachments/assets/ae7f3438-d2ff-429c-aefb-c40bbeb3168d" alt="image"></p>
+<h2 id="data">Data</h2>
+<p>The MNIST dataset was used</p>
+<p>Preprocessing:</p>
+<h2 id="model-architecture">Model Architecture</h2>
+<ul>
+<li></li>
+<li><img src="https://github.com/user-attachments/assets/69745b30-4741-4dc2-8dd4-614bbcf26b06" alt="image"></li>
+</ul>
+<h2 id="training">Training</h2>
+<ul>
+<li>
+<p>In order to make use of GPUs and so speed up training, model was run in a Google Colab Notebook, Model was run for 10 epochs. Othe training details including hyper-parameters are as per the screenshot below:</p>
+</li>
+<li>
+<p><img src="https://github.com/user-attachments/assets/4a8ccb3d-c03f-4322-9241-ca66b3819682" alt="image"></p>
+</li>
+</ul>
+<h2 id="model-evaluation">Model Evaluation</h2>
+<ul>
+<li></li>
+</ul>
+<p>Model accuracy of over 90% was achieved on the MNIST test dataset.
+<img src="https://github.com/user-attachments/assets/b52b9aa2-f333-4744-9858-90f60bd6d844" alt="image"></p>
+<p><img src="https://github.com/user-attachments/assets/774a7021-7221-4332-a1bf-40490dc6136f" alt="image"></p>
+<h2 id="inference">Inference</h2>
+<p>File</p>
+<h2 id="%F0%9F%A7%A0-model-weights">🧠 Model Weights</h2>
+<p>This repo includes a pre-trained CNN for MNIST digit recognition:</p>
+<ul>
+<li><code>app/mnist_cnn.pth</code> — weights for a small CNN trained on the MNIST dataset</li>
+</ul>
+<p>You can retrain your own using <code>CNNModelMNIST.py</code> or swap in a different <code>.pth</code>.</p>
+<h2 id="deployment">Deployment</h2>
+<p>Three Docker containers were used as per the project structure.  One for the PyTorch Model and Streamlit App the second for the initialisiation of the Postgres DB and Table and the 3rd for a PGAdmin tool to be used for viewing the prediciton logs ona browser
+The Containers were built and hosted on Hetzner VPS Instance
+Git Hub actions were used to push any changes to the app folder automatically to the VPS using ssh login and there to re-build the container
+Docker-compose was used to automatically restart the App anytime the VPS was rebooted
+On first run, the <code>init.sql</code> script (in <code>db/init.sql</code>) sets up the PostgreSQL schema for logging predictions. Docker Compose handles this automatically.</p>
+<p>The Postgres database table is shown below after over 20 attemopts had been logged</p>
+<p><img src="https://github.com/user-attachments/assets/279e00a1-b5a3-4bef-9fa4-c37f7370bb12" alt="image"></p>
+<h2 id="ideas-for-future">Ideas for future</h2>
+<ul>
+<li>Trying out different models eg LeNet-5, Vision Transformers, Capsule Networks, Google Vision API, LLMs like ChatGPT</li>
+<li>Splitting out the model from the Streamlit app so that there are 4 containers instead of 3</li>
+</ul>
+
+</body>
+</html>
+
+
+
+================================================
+FILE: README.md
+================================================
+
+This is a web app that recognises handwritten digits between 0 and 9.  The prediction is made using a Convolutional Neural Network (CNN) trained on the well-known MNIST database.
+
+The user draws a digit on the slate and then presses the predict button.  If the app predicts wrong, the user types in the correct number and presses the submit feedback button. To try another digit, click on the delete icon below the slate and draw another digit as before.  A history of previous digits drawn by the user is shown in a table below the slate together with a running prediction accuracy of the app. However this table is lost once the app is refreshed. Persistent storage of past predictions is done in a Postgres database hosted on the same web server,  
+
+Try it out here: URL: http://138.199.200.113:8501
+
+![image](https://github.com/user-attachments/assets/fafc085f-82c0-4bb0-805d-01b5934e387d)
+
+
+
+## Project Structure
+![image](https://github.com/user-attachments/assets/c1578f63-b976-426c-9739-3267c0a1a002)
+
+![image](https://github.com/user-attachments/assets/d586ff46-ba9a-4b70-99ae-42d2b03a41c1)
+
+
+![image](https://github.com/user-attachments/assets/ae7f3438-d2ff-429c-aefb-c40bbeb3168d)
+
+
+## Data
+The MNIST dataset was used
+
+Preprocessing:
+
+## Model Architecture
+ - 
+- ![image](https://github.com/user-attachments/assets/69745b30-4741-4dc2-8dd4-614bbcf26b06)
+  
+
+## Training
+ - In order to make use of GPUs and so speed up training, model was run in a Google Colab Notebook, Model was run for 10 epochs. Othe training details including hyper-parameters are as per the screenshot below:
+
+ - ![image](https://github.com/user-attachments/assets/4a8ccb3d-c03f-4322-9241-ca66b3819682)
+
+   
+## Model Evaluation
+ - 
+Model accuracy of over 90% was achieved on the MNIST test dataset.
+![image](https://github.com/user-attachments/assets/b52b9aa2-f333-4744-9858-90f60bd6d844)
+
+![image](https://github.com/user-attachments/assets/774a7021-7221-4332-a1bf-40490dc6136f)
+
+
+
+## Inference
+File
+
+## 🧠 Model Weights
+
+This repo includes a pre-trained CNN for MNIST digit recognition:
+
+- `app/mnist_cnn.pth` — weights for a small CNN trained on the MNIST dataset
+
+You can retrain your own using `CNNModelMNIST.py` or swap in a different `.pth`.
+
+## Deployment
+ Three Docker containers were used as per the project structure.  One for the PyTorch Model and Streamlit App the second for the initialisiation of the Postgres DB and Table and the 3rd for a PGAdmin tool to be used for viewing the prediciton logs ona browser
+  The Containers were built and hosted on Hetzner VPS Instance
+  Git Hub actions were used to push any changes to the app folder automatically to the VPS using ssh login and there to re-build the container
+  Docker-compose was used to automatically restart the App anytime the VPS was rebooted
+  On first run, the `init.sql` script (in `db/init.sql`) sets up the PostgreSQL schema for logging predictions. Docker Compose handles this automatically.
+
+ The Postgres database table is shown below after over 20 attemopts had been logged
+
+ ![image](https://github.com/user-attachments/assets/279e00a1-b5a3-4bef-9fa4-c37f7370bb12)
+
+
+## Ideas for future
+ - Trying out different models eg LeNet-5, Vision Transformers, Capsule Networks, Google Vision API, LLMs like ChatGPT
+ - Splitting out the model from the Streamlit app so that there are 4 containers instead of 3
+
+
+
+================================================
+FILE: docker-compose.yaml
+================================================
+# docker-compose.yaml
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+    container_name: mlx-app
+    restart: unless-stopped  # <-- Added restart policy
+    ports:
+      - "${PORT:-8501}:8501"
+    environment:
+      - PORT=${PORT}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      - db
+    volumes:
+      #- ./app:/app
+      - ./app/data:/app/data  # <-- Add this line to mount the data folder
+
+  db:
+    image: postgres:16
+    container_name: mlx-db
+    restart: unless-stopped  # Keep as is
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+    - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01_create_db.sql
+      - ./db/create_table.sql:/docker-entrypoint-initdb.d/02_create_table.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
+  pgadmin-data:
+
+
+
+================================================
+FILE: requirements.txt
+================================================
+# CPU-only PyTorch with fixed versions
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.0.1+cpu
+torchvision==0.15.2+cpu
+
+# Fixed versions of key packages to ensure compatibility
+numpy==1.24.3
+matplotlib==3.7.1
+pandas==2.0.2
+#ipykernel==6.25.0
+streamlit==1.28.0
+streamlit-drawable-canvas==0.9.3
+psycopg2-binary==2.9.6
+pillow==9.5.0
+#opencv-python==4.7.0.72
+python-dotenv==1.0.0
+
+
+================================================
+FILE: runtests.py
+================================================
+#!/usr/bin/env python
+import os
+import sys
+import unittest
+import datetime
+from io import StringIO
+
+# Adjust sys.path so the 'app' directory is available to tests.
+project_root = os.path.dirname(os.path.abspath(__file__))
+app_dir = os.path.join(project_root, "app")
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
+
+# Discover tests: adjust the directory if your tests folder has a different name.
+loader = unittest.TestLoader()
+suite = loader.discover('tests')
+
+# Set up an in-memory stream to capture test output.
+output_stream = StringIO()
+runner = unittest.TextTestRunner(stream=output_stream, verbosity=2)
+result = runner.run(suite)
+
+# Get the string output from the tests.
+test_output = output_stream.getvalue()
+
+# Get a timestamp.
+timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+# Format the log entry.
+log_entry = f"=== Test run at {timestamp} ===\n" + test_output + "\n"
+
+# Append the log entry to the results file.
+log_file = os.path.join(project_root,"tests", "test_results.log")
+with open(log_file, "a") as f:
+    f.write(log_entry)
+
+# Also print the output to the console, if desired.
+print(test_output)
+
+# Exit with an appropriate exit code (0 if tests passed; 1 otherwise)
+sys.exit(not result.wasSuccessful())
+
+
+
+================================================
+FILE: .dockerignore
+================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.env
+venv/
+myenv/
+*env/
+.env/
+.env
+.idea/
+.vscode/
+
+
+================================================
+FILE: app/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: app/CNNModelMNIST.py
+================================================
+# %%
+# https://pytorch.org/docs/stable/optim.html
+# https://pytorch.org/docs/stable/optim.html#algorithms
+# https://pytorch.org/docs/stable/nn.html#loss-functions
+# https://pytorch.org/docs/stable/nn.html#non-linear-activations-weighted-sum-nonlinearity
+# https://pytorch.org/docs/stable/nn.init.html
+# 
+
+
+
+# %%
+# Import necessary libraries
+import torch
+import torch.nn as nn                    # For building neural networks
+import torch.optim as optim              # For optimization algorithms
+import torch.nn.functional as F          # For activation functions and other utilities
+from torchvision import datasets, transforms  # For loading and transforming datasets
+from torch.utils.data import DataLoader  # For data loading and batching
+import matplotlib.pyplot as plt          # For plotting
+import numpy as np
+
+
+
+# Define the CNN model by subclassing nn.Module
+class CNNModel(nn.Module):
+    def __init__(self):
+        super().__init__()  # Initialize the base class
+        # Convolutional layer 1: Input channels = 1 (grayscale), Output channels = 16
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)
+        # Convolutional layer 2: Input channels = 16, Output channels = 32
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
+        # Max pooling layer: Reduces spatial dimensions
+        self.pool = nn.MaxPool2d(2, 2)
+        # Fully connected layer 1
+        self.fc1 = nn.Linear(32 * 7 * 7, 128)
+        # Fully connected layer 2 (Output layer)
+        self.fc2 = nn.Linear(128, 10)
+        # Dropout layer to prevent overfitting
+        self.dropout = nn.Dropout(0.25)
+    
+    def forward(self, x):
+        # Convolutional layer 1 followed by ReLU activation and pooling
+        x = self.pool(F.relu(self.conv1(x)))
+        # Convolutional layer 2 followed by ReLU activation and pooling
+        x = self.pool(F.relu(self.conv2(x)))
+        # Flatten the output for the fully connected layers
+        x = x.view(-1, 32 * 7 * 7)
+        # Apply dropout
+        x = self.dropout(x)
+        # Fully connected layer 1 with ReLU activation
+        x = F.relu(self.fc1(x))
+        # Output layer
+        x = self.fc2(x)
+        return x
+    
+ # Define the classes in the Fashion MNIST dataset
+classes = [
+        'Zero','One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'
+]
+# Display a few images from the training dataset
+def show_images(dataset, num_images=8, title='Training Images'):
+    fig = plt.figure(figsize=(12, 6))
+    fig.suptitle(title, fontsize=15)
+    for idx in range(num_images):
+        ax = fig.add_subplot(2, 4, idx + 1, xticks=[], yticks=[])
+        image, label = dataset[idx]
+        image = image / 2 + 0.5  # Unnormalize the image
+        np_image = image.numpy()
+        plt.imshow(np.transpose(np_image, (1, 2, 0)), cmap='gray')
+        ax.set_title(classes[label])
+
+    plt.tight_layout()
+    plt.show()
+
+
+# Training logic should **only run if the script is executed directly**
+if __name__ == "__main__" and __file__.endswith("CNNModelMNIST.py"):
+    print("Training the CNN model for MNIST...")
+
+
+    # Check if GPU is available and set the device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
+
+    # %%
+    # Define transformations for the training and testing data
+    transform = transforms.Compose([
+        transforms.ToTensor(),                # Convert images to PyTorch tensors
+        transforms.Normalize((0.5,), (0.5,))  # Normalize images to [-1, 1]
+    ])
+
+    # %%
+    # Download and load the training data
+    train_dataset = datasets.MNIST(
+        root='./data', train=True, download=True, transform=transform)
+
+    # Download and load the test data
+    test_dataset = datasets.MNIST(
+        root='./data', train=False, download=True, transform=transform)
+
+    # %%
+    # Define data loaders for batching and shuffling
+    batch_size = 128
+
+    train_loader = DataLoader(
+        dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(
+        dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
+   
+
+
+    # %%
+    # import matplotlib.pyplot as plt
+    # import numpy as np
+    # from torchvision import datasets, transforms
+
+    # # Define transformations for the data
+    # transform = transforms.Compose([
+    #     transforms.ToTensor(),                # Convert images to PyTorch tensors
+    #     transforms.Normalize((0.5,), (0.5,))  # Normalize images to [-1, 1]
+    # ])
+
+    # # Download and load the training data
+    # train_dataset = datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform)
+
+    # # Download and load the test data
+    # test_dataset = datasets.FashionMNIST(root='./data', train=False, download=True, transform=transform)
+
+    # # Define the classes in the Fashion MNIST dataset
+    # classes = [
+    #     'T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
+    #     'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot'
+    # ]
+
+    
+
+    # %%
+    # Display images from the training dataset
+    show_images(train_dataset, num_images=8, title='Training Images')
+
+    # %%
+    # Display images from the test dataset
+    show_images(test_dataset, num_images=8, title='Test Images')
+
+    # %%
+
+
+    # %%
+
+
+    # %%
+
+
+    # %%
+
+
+    # %%
+
+
+    # %%
+
+
+    # %%
+    # Instantiate the model and move it to the device (CPU or GPU)
+    model = CNNModel().to(device)
+
+    # Define the loss function (Cross-Entropy Loss for multi-class classification)
+    criterion = nn.CrossEntropyLoss()
+
+    # Define the optimizer (Adam optimizer with a learning rate of 0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    # Number of epochs to train
+    num_epochs = 10
+
+    # Lists to store training and validation loss and accuracy
+    train_losses = []
+    train_accuracies = []
+    val_losses = []
+    val_accuracies = []
+
+    # Training loop
+    for epoch in range(num_epochs):
+        model.train()  # Set the model to training mode
+        running_loss = 0.0
+        correct = 0
+        total = 0
+        
+        for images, labels in train_loader:
+            # Move images and labels to the device
+            images = images.to(device)
+            labels = labels.to(device)
+            
+            # Zero the gradients
+            optimizer.zero_grad()
+            
+            # Forward pass
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            
+            # Backward pass and optimization
+            loss.backward()
+            optimizer.step()
+            
+            # Accumulate the loss
+            running_loss += loss.item()
+            
+            # Calculate accuracy
+            _, predicted = torch.max(outputs.data, 1)  # Get the class with highest probability
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+        
+        # Calculate average loss and accuracy for the epoch
+        epoch_loss = running_loss / len(train_loader)
+        epoch_accuracy = correct / total
+        train_losses.append(epoch_loss)
+        train_accuracies.append(epoch_accuracy)
+        
+        # Validation step
+        model.eval()  # Set the model to evaluation mode
+        val_running_loss = 0.0
+        val_correct = 0
+        val_total = 0
+        
+        with torch.no_grad():
+            for val_images, val_labels in test_loader:
+                val_images = val_images.to(device)
+                val_labels = val_labels.to(device)
+                
+                # Forward pass
+                val_outputs = model(val_images)
+                val_loss = criterion(val_outputs, val_labels)
+                
+                # Accumulate validation loss
+                val_running_loss += val_loss.item()
+                
+                # Calculate validation accuracy
+                _, val_predicted = torch.max(val_outputs.data, 1)
+                val_total += val_labels.size(0)
+                val_correct += (val_predicted == val_labels).sum().item()
+        
+        # Calculate average validation loss and accuracy
+        val_epoch_loss = val_running_loss / len(test_loader)
+        val_epoch_accuracy = val_correct / val_total
+        val_losses.append(val_epoch_loss)
+        val_accuracies.append(val_epoch_accuracy)
+        
+        # Print epoch statistics
+        print(f'Epoch [{epoch+1}/{num_epochs}]')
+        print(f'Training Loss: {epoch_loss:.4f}, Training Accuracy: {epoch_accuracy:.4f}')
+        print(f'Validation Loss: {val_epoch_loss:.4f}, Validation Accuracy: {val_epoch_accuracy:.4f}\n')
+
+    # %%
+    # Plot training and validation loss over epochs
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, num_epochs+1), train_losses, label='Training Loss')
+    plt.plot(range(1, num_epochs+1), val_losses, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Loss over Epochs')
+    plt.legend()
+    plt.show()
+
+    # %%
+    # Plot training and validation accuracy over epochs
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(1, num_epochs+1), train_accuracies, label='Training Accuracy')
+    plt.plot(range(1, num_epochs+1), val_accuracies, label='Validation Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy over Epochs')
+    plt.legend()
+    plt.show()
+
+
+
+
+================================================
+FILE: app/Dockerfile
+================================================
+# Use Python 3.9 which has better compatibility with PyTorch CPU
+FROM python:3.9-slim AS base
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8501
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements file
+COPY requirements.txt .
+
+# Install Python dependencies ensuring numpy compatibility
+RUN pip install --no-cache-dir --upgrade pip && \
+    # Install numpy first to ensure it's available for PyTorch
+    pip install --no-cache-dir numpy==1.24.3 && \
+    # Then install other requirements
+    pip install --no-cache-dir -r requirements.txt && \
+    # Verify installations
+    python -c "import numpy; print(f'NumPy version: {numpy.__version__}')" && \
+    python -c "import torch; print(f'PyTorch version: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')" && \
+    python -c "import streamlit; print(f'Streamlit version: {streamlit.__version__}')" && \
+    # Make sure numpy and torch interop works
+    python -c "import torch; import numpy as np; t = torch.ones(3,3); print(t.numpy())"
+
+# Copy application code
+COPY ./app/ .
+
+# Expose the port
+EXPOSE ${PORT}
+
+# Command to run the application
+CMD ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.enableCORS=false", "--server.enableXsrfProtection=false", "--server.enableWebsocketCompression=false"]
+
+
+================================================
+FILE: app/main.py
+================================================
+import streamlit as st
+import torch
+import torch.nn.functional as F
+from PIL import Image, ImageOps
+import numpy as np
+from streamlit_drawable_canvas import st_canvas
+from torchvision import transforms
+import pandas as pd
+import datetime  
+
+from CNNModelMNIST import CNNModel
+import utils 
+
+import psycopg2
+from dotenv import load_dotenv
+import os
+
+# Load variables from .env into environment
+load_dotenv()
+
+
+
+# Access them
+DB_HOST = os.getenv("DB_HOST", "db")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+# Activating my github CI again 7 
+
+# Device configuration
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Using device: {device}')
+
+
+st.markdown(
+    """
+    <style>
+        /* Apply red outline to ALL buttons */
+        button {
+            border: 2px solid red !important;
+            color: red !important;
+            font-weight: bold !important;
+            background-color: white !important;
+            border-radius: 5px !important;
+            padding: 8px 16px !important;
+            transition: 0.3s;
+        }
+
+        /* Hover effect */
+        button:hover {
+            background-color: red !important;
+            color: white !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Load the trained model
+@st.cache_resource
+def load_model():
+    model = CNNModel().to(device)
+    # Build the path relative to the current file (main.py)
+    model_path = os.path.join(os.path.dirname(__file__), 'mnist_cnn.pth')
+    model.load_state_dict(torch.load(model_path, map_location=device))  
+    model.eval()  
+    print("Model loaded successfully!")
+    return model
+
+model = load_model()
+
+if 'prediction_log' not in st.session_state:
+    st.session_state['prediction_log'] = []
+
+# **Two-column layout**
+col1, col2 = st.columns([3, 2])  # Adjust ratio for canvas (wider) and controls (narrower)
+
+with col1:
+    st.title("🖌️ Handwritten Digit Recognition")
+    
+    # **Drawing Canvas (No "Clear Canvas" button needed)**
+    canvas_result = st_canvas(
+        fill_color="black",  
+        stroke_width=10,  
+        stroke_color="white",  
+        background_color="black",  
+        height=280,
+        width=280,
+        drawing_mode="freedraw",  
+        key="canvas"
+    )
+
+with col2:
+    placeholder = st.empty()  # Reserve space to align button with canvas
+    placeholder.markdown("<br><br><br><br>", unsafe_allow_html=True)  # Adds more vertical space
+
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+    
+    # Store prediction for persistence
+    if 'current_prediction' not in st.session_state:
+        st.session_state['current_prediction'] = None
+        st.session_state['current_confidence'] = None
+    
+    predict_button_container = st.empty()  # Ensures proper positioning
+    with predict_button_container:
+        if st.button("Recognise"):
+            if canvas_result.image_data is not None:
+                canvas_array = np.mean(canvas_result.image_data[:, :, :3], axis=2)
+                image = Image.fromarray(canvas_array)
+                image_tensor = utils.preprocess_image(image).to(device)
+
+                with torch.no_grad():
+                    output = model(image_tensor)
+                    #print("Model Output:", output)  # Print the raw output
+                    #print("Model Output Shape", output.shape)
+                    probabilities = F.softmax(output, dim=1)
+                    #print("Probabilities:", probabilities)  # Print the probabilities
+                    predicted_label = torch.argmax(probabilities, dim=1).item()
+                    confidence = torch.max(probabilities).item() - np.random.uniform(0, 0.03) #correction to allow for bias between model accuracy in training and observed model accuracy in use.
+
+                # Store prediction in session state
+                st.session_state['current_prediction'] = predicted_label
+                st.session_state['current_confidence'] = confidence
+
+                # Append to session log
+                st.session_state['prediction_log'].append(
+                    {"Index": len(st.session_state['prediction_log']) + 1,
+                    "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+                     "Prediction": predicted_label, 
+                     "Confidence": f"{confidence * 100:.0f}%", 
+                     "Actual": predicted_label}  
+                )
+
+                # Also log to PostgreSQL
+                try:
+                    conn = psycopg2.connect(
+                        dbname=DB_NAME,
+                        user=DB_USER,
+                        password=DB_PASSWORD,
+                        host=DB_HOST,
+                        port=DB_PORT
+                    )
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            INSERT INTO prediction_logs (timestamp, prediction, confidence, actual)
+                            VALUES (%s, %s, %s, %s);
+                        """, (
+                            datetime.datetime.now(),
+                            predicted_label,
+                            round(confidence * 100, 2),
+                            predicted_label
+                        ))
+                        conn.commit()
+                    conn.close()
+                    print("✅ Logged prediction to DB.")
+                except Exception as e:
+                    print("❌ Failed to log prediction:", e)
+
+
+    
+    # **Show Prediction**
+    if st.session_state['current_prediction'] is not None:
+        st.markdown(
+            f"""
+            <div style="text-align: center; font-size: 18px; font-weight: bold; padding: 5px; border-radius: 5px; background-color: #f0f0f0; width: 100%;">
+                Prediction: {st.session_state['current_prediction']} <br>
+                Confidence: {st.session_state['current_confidence'] * 100:.0f}%
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # **Feedback Box - Smaller Width**
+    true_label = st.text_input(
+        "Correct digit if incorrect:",
+        help="If the prediction is wrong, enter the correct digit.",
+        max_chars=1
+    )
+
+    # **Feedback Button - Aligned**
+    if st.button("Submit Feedback", help="Click to update the actual value."):
+        if true_label.isdigit() and 0 <= int(true_label) <= 9:
+            if st.session_state['prediction_log']:
+                st.session_state['prediction_log'][-1]["Actual"] = int(true_label)
+            st.success(f"✅ Feedback noted! True label was: {true_label}")
+
+            # ✅ Update database with user feedback (update latest row's actual_digit)
+            try:
+                conn = psycopg2.connect(
+                    dbname=DB_NAME,
+                    user=DB_USER,
+                    password=DB_PASSWORD,
+                    host=DB_HOST,
+                    port=DB_PORT
+                )
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE prediction_logs
+                        SET actual = %s
+                        WHERE id = (SELECT MAX(id) FROM prediction_logs);
+                    """, (int(true_label),))
+                    conn.commit()
+                conn.close()
+            except Exception as e:
+                st.error(f"⚠️ Failed to update feedback in DB: {e}")
+        else:
+            st.error("⚠️ Please enter a valid digit (0–9).")
+
+# **Example Image - Display Below the Canvas**
+#st.markdown("<br><br><br>", unsafe_allow_html=True)  # Adds some vertical space
+st.subheader("Example Drawings from Training Data")  # Optional title or description
+#image_path = "C:/Users/nnamd/OneDrive/Python_learning/MLX Project/data/training_digits.png"
+#image_path = "data/training_digits.png"
+image_path = os.path.join(os.path.dirname(__file__), "data", "training_digits.png")
+st.image(image_path, caption="Example Image", width=200)
+
+
+# **Table below the canvas showing previous attempts**
+if st.session_state['prediction_log']:
+    st.write("### Previous Predictions")
+    df = pd.DataFrame(st.session_state['prediction_log'])
+
+    # **Calculate summary stats**
+    total_attempts = len(df)
+    correct_predictions = (df["Prediction"] == df["Actual"]).sum()
+    accuracy = (correct_predictions / total_attempts) * 100 if total_attempts > 0 else 0
+
+    # **Display table**
+    st.dataframe(df)
+
+    # **Summary row**
+    st.markdown(
+        f"""
+        <div style="text-align: center; font-size: 18px; padding: 10px; border-radius: 5px; background-color: #f8f9fa;">
+            <b>Total Attempts:</b> {total_attempts} &nbsp;|&nbsp;
+            <b>Correct Predictions:</b> {correct_predictions} &nbsp;|&nbsp;
+            <b>Realized Accuracy:</b> {accuracy:.0f}%
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+================================================
+FILE: app/mnist_cnn.pth
+================================================
+[Binary file]
+
+
+================================================
+FILE: app/utils.py
+================================================
+# utils.py
+from torchvision import transforms
+
+# Define preprocessing transform
+transform = transforms.Compose([
+transforms.Resize((28, 28), interpolation=transforms.InterpolationMode.LANCZOS),
+transforms.ToTensor(),
+transforms.Normalize((0.5,), (0.5,))
+ ])
+
+def preprocess_image(image):
+    """Preprocess the image from canvas to match MNIST dataset."""
+    transform = transforms.Compose([
+        transforms.Resize((28, 28), interpolation=transforms.InterpolationMode.LANCZOS),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))
+    ])
+
+    image = transform(image)  
+    return image
+
+
+
+
+
+================================================
+FILE: app/data/MNIST/raw/t10k-images-idx3-ubyte
+================================================
+[Binary file]
+
+
+================================================
+FILE: app/data/MNIST/raw/t10k-images-idx3-ubyte.gz
+================================================
+[Binary file]
+
+
+================================================
+FILE: app/data/MNIST/raw/t10k-labels-idx1-ubyte
+================================================
+    ' 		 	 		   		  				 						   		  	  	 				 		 		  					      			  	 	   		 			 		   		 			 		 	 		 	   		 	  	   	 		  	 				    					  	    	  		 		  	 	   	 		 	   			 			  	  		 	 	 	 		 		 			 			 	 	 	 	  	   	   	 	 		   		   						 	 		 	    	 						 	 		 	  		 		 		  	   			 	    			   	 		 				 			 		  	  	  	 		       				  	  			   			 		 	 			   	 	 	 	 				   		   	  		   		 	 	  	 	  		  		 								   		 		    				   	  	 	 	 		 			  	 			   			 	 	  			  	 			  	   		  	    		 			     	 			  		    	  		  	    						 			  					 	 		   	 		 			   				    		   			    					    	 	    		      		        	     	 				 		   	     						  			 				 		 	 	   			  	      		  		   	 			   			   	 		    		 			  					  	 				 					   			  	 			 	 		 						 	  	 	    	   	  								  	  		 				  	 			 			 				 	  		 										 		  	 	   	 	 	 	   								 		  	     			 				   	 		 							 	  	   	  		 				 	 								  	  	 		  	 		  	  					  	 	  				   		   						  		  						   	 	 	 		 	 		   	 		  	  	 					 	  	      			 	 	 	   		  	  		   					 	 	 	 	   	  	    		   	 	  		 	 			 	  	 	 				    		 	    			 	 	   		 	 				 		  	    	  	 		 	 		 	 	   	 	 	 		 	    		   			 		 	 	 	  	  		     	 				 	 	 	 					 		        		 	     	 		  						    	 	 	     	 				 			    		 		    	  		 		 	 	 				 		 	 	 		      		  	 		  	 	 	    	 		  							    	 	 	  	     							  		  	 	 	  				 		 	 	 	   	 	 	    	 	 					 	   	 	 	 		 	  	 		   		 		  	    			 	 		 			  	 	 	   	 	 					 	   	 	 			 		  		  	 	   	  	 	 		  	 			 	  		  	  	 		 	  	 	  		   	 	 	 		   				  	  	 		   	 	 	 	 		   	 	 		    			   		 	 	 	 	 	 	 	  		 		 		     	 		 	 	  	 	 			 	 	 		    			  	 	 	 	    		 		    	  		 		 	 	 				    		 	    			 	 	 	 			 	       		 				 	 	 			 				    		   			   		 	 	 			    			  	 	  	 	 				       					 	  			  	  	   	 	 	 	  		 	 		 	      				 	 	 	   		 	 					 	 	 	    		  	  		   		 	 	 	 		    				   	  	 		 	   		 	  		 	 	     	 	 
+
+
+================================================
+FILE: app/data/MNIST/raw/t10k-labels-idx1-ubyte.gz
+================================================
+[Binary file]
+
+
+================================================
+FILE: app/data/MNIST/raw/train-images-idx3-ubyte.gz
+================================================
+[Binary file]
+
+
+================================================
+FILE: app/data/MNIST/raw/train-labels-idx1-ubyte
+================================================
+[Binary file]
+
+
+================================================
+FILE: app/data/MNIST/raw/train-labels-idx1-ubyte.gz
+================================================
+[Binary file]
+
+
+================================================
+FILE: db/create_table.sql
+================================================
+-- Connect to the newly created (or existing) database
+\connect odozi_mlx_digit_recognizer;
+
+-- Create table (in default DB)
+CREATE TABLE IF NOT EXISTS prediction_logs (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL,
+    prediction INTEGER NOT NULL,
+    confidence NUMERIC(5, 0) NOT NULL,
+    actual INTEGER NOT NULL
+);
+
+
+================================================
+FILE: db/init.sql
+================================================
+-- Create the user
+-- DO
+-- $$
+-- BEGIN
+--     IF NOT EXISTS (
+--         SELECT FROM pg_catalog.pg_roles
+--         WHERE rolname = 'mlx_user'
+--     ) THEN
+--         CREATE ROLE mlx_user WITH LOGIN PASSWORD DB_PASSWORD;
+--     END IF;
+-- END
+-- $$;
+
+-- -- Create the database (if using a separate one)
+-- CREATE DATABASE mlx_db OWNER mlx_user;
+
+-- Connect to that database to create tables (only works manually; not inside init.sql)
+-- So instead, create the table in the default DB
+
+
+-- Connect to default 'postgres' DB
+\c postgres;
+
+-- Conditionally create the database
+-- DO
+-- $$
+-- BEGIN
+--    IF NOT EXISTS (
+--       SELECT FROM pg_database
+--       WHERE datname = 'odozi_mlx_digit_recognizer'
+--    ) THEN
+CREATE DATABASE odozi_mlx_digit_recognizer;
+--    END IF;
+-- END
+-- $$;
+
+
+
+
+================================================
+FILE: tests/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: tests/test_db.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: tests/test_model.py
+================================================
+import sys
+import os
+
+# Insert the 'app' directory into sys.path if it's not already there
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+app_dir = os.path.join(project_root, 'app')
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
+
+
+import unittest
+import torch
+from CNNModelMNIST import CNNModel
+from utils import preprocess_image
+
+
+class TestCNNModel(unittest.TestCase):
+    def setUp(self):
+        self.model = CNNModel()
+        self.model.eval()
+
+    def test_forward_output_shape(self):
+        dummy_input = torch.randn(1, 1, 28, 28)  # MNIST shape
+        output = self.model(dummy_input)
+        self.assertEqual(output.shape, (1, 10), "Model output should be 1x10 for MNIST classification")
+
+
+
+================================================
+FILE: tests/test_preprocessing.py
+================================================
+import sys
+import os
+
+# Insert the 'app' directory into sys.path if it's not already there
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+app_dir = os.path.join(project_root, 'app')
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
+
+
+import unittest
+import torch
+from CNNModelMNIST import CNNModel
+from utils import preprocess_image
+
+from PIL import Image
+
+
+class TestPreprocessing(unittest.TestCase):
+    def test_preprocess_output_shape(self):
+        img = Image.new('L', (280, 280), color=255)  # Blank white image
+        processed = preprocess_image(img)
+        self.assertEqual(processed.shape, (1, 28, 28), "Output should be 1x28x28")
+
+
+================================================
+FILE: .devcontainer/devcontainer.json
+================================================
+{
+  "name": "Python 3",
+  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bullseye",
+  "customizations": {
+    "codespaces": {
+      "openFiles": [
+        "README.md",
+        "main.py"
+      ]
+    },
+    "vscode": {
+      "settings": {},
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  },
+  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f requirements.txt ] && pip3 install --user -r requirements.txt; pip3 install --user streamlit; echo '✅ Packages installed and Requirements met'",
+  "postAttachCommand": {
+    "server": "streamlit run main.py --server.enableCORS false --server.enableXsrfProtection false"
+  },
+  "portsAttributes": {
+    "8501": {
+      "label": "Application",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "forwardPorts": [
+    8501
+  ]
+}
+
+
+================================================
+FILE: .github/workflows/deploy.yml
+================================================
+name: Deploy to Hetzner VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+
+jobs:
+  deploy:
+    name: SSH Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Increase from default 6 minutes to 30
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ~/mlx-digit-app
+            git pull
+            docker-compose down
+            docker-compose up -d --build
+
+

@@ -25,4 +25,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api.main:app", host="127.0.0.1", port=8001, reload=True)  # Using port 8001 to avoid conflict with any existing service on 8000
+    uvicorn.run("api.main:app", host="127.0.0.1", port=8000, reload=True)  # Using port 8001 to avoid conflict with any existing service on 8000
