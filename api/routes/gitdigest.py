@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from app.main import run_gitdigest, DEFAULT_WORD_COUNT
+from app.main import run_gitdigest, DEFAULT_WORD_COUNT, OUTPUT_DIR
 
 router = APIRouter()
 
@@ -67,11 +67,12 @@ async def download_digest(filename: str):
     """
     Download a previously generated digest file by filename.
     """
-    # Security: only allow .txt or .json files in current directory
+    # Security: only allow .txt or .json files, no path traversal
     if not (filename.endswith(".txt") or filename.endswith(".json")) or ".." in filename or "/" in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
 
-    if not os.path.exists(filename):
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
 
-    return FileResponse(filename, filename=filename)
+    return FileResponse(filepath, filename=filename)

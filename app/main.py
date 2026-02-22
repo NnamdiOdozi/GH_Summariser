@@ -14,6 +14,7 @@ import requests
 # Constants and defaults
 DEFAULT_WORD_COUNT = 500
 DEFAULT_MAX_SIZE = 10485760  # 10MB
+OUTPUT_DIR = "git_summaries"
 DEFAULT_EXCLUDE_PATTERNS = [
     # Binary/media files
     "*.pdf", "*.csv", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.svg", "*.ico",
@@ -83,13 +84,16 @@ def run_gitdigest(
         branch_fallbacks = [initial_branch]
     branch_fallbacks.extend(["main", "master"])
 
+    # Ensure output directory exists
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     # Try each branch until one works
     output_file = None
     for target_branch in branch_fallbacks:
         # Build clean GitHub URL without branch/path
         repo_url = f"https://github.com/{parsed['owner']}/{parsed['repo']}"
 
-        output_file = f"{parsed['owner']}-{parsed['repo']}.txt"
+        output_file = os.path.join(OUTPUT_DIR, f"{parsed['owner']}-{parsed['repo']}.txt")
 
         # Try gitingest directly (pip-installed), fall back to uvx gitingest
         if shutil.which("gitingest"):
