@@ -14,6 +14,13 @@ import requests
 # Constants and defaults
 DEFAULT_WORD_COUNT = 500
 DEFAULT_MAX_SIZE = 10485760  # 10MB
+DEFAULT_EXCLUDE_PATTERNS = [
+    "*.pdf", "*.csv", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.svg", "*.ico",
+    "*.mp3", "*.mp4", "*.wav", "*.zip", "*.tar", "*.gz", "*.rar", "*.7z",
+    "*.exe", "*.dll", "*.so", "*.bin", "*.dat", "*.db", "*.sqlite",
+    "*.xls", "*.xlsx", "*.parquet", "*.pickle", "*.pkl",
+    "*.h5", "*.hdf5", "*.npy", "*.npz", "*.pth", "*.pt", "*.onnx", "*.tflite", "*.weights",
+]
 
 
 def parse_github_url(url: str) -> dict:
@@ -56,7 +63,7 @@ def run_gitdigest(
     branch: str = None,
     max_size: int = DEFAULT_MAX_SIZE,
     include_pattern: str = None,
-    exclude_pattern: str = None,
+    exclude_patterns: list = None,
     word_count: int = DEFAULT_WORD_COUNT,
     call_llm_api: bool = True,
 ) -> dict:
@@ -92,6 +99,10 @@ def run_gitdigest(
 
         if max_size:
             cmd.extend(["-s", str(max_size)])
+
+        patterns = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDE_PATTERNS
+        for pat in patterns:
+            cmd.extend(["-e", pat])
 
         result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -177,6 +188,8 @@ def main():
     parser.add_argument("-w", "--word-count", type=int, default=DEFAULT_WORD_COUNT, help=f"Summary word count (default: {DEFAULT_WORD_COUNT})")
     parser.add_argument("-c", "--call-llm-api", action="store_true", help="Call LLM API for summarization")
     parser.add_argument("-m", "--max-size", type=int, default=DEFAULT_MAX_SIZE, help=f"Max file size in bytes (default: {DEFAULT_MAX_SIZE})")
+    parser.add_argument("-e", "--exclude-pattern", action="append", default=None, dest="exclude_patterns",
+                        help="Glob pattern to exclude (repeatable). Defaults to common binary/data extensions.")
 
     args = parser.parse_args()
 
@@ -189,6 +202,7 @@ def main():
         word_count=args.word_count,
         call_llm_api=args.call_llm_api,
         max_size=args.max_size,
+        exclude_patterns=args.exclude_patterns,
     )
 
     print(f"Output saved to: {result['output_file']}")
