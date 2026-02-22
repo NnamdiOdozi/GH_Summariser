@@ -1,0 +1,25 @@
+[Unit]
+Description=GH Summariser App
+After=network.target
+Wants=network-online.target
+
+[Service]
+User=root
+WorkingDirectory=/home/projects/GH_summariser
+Environment="PATH=/home/projects/GH_summariser/.venv/bin"
+# ExecStart=/home/projects/GH_summariser/.venv/bin/streamlit run pulse_streamlit_app.py --server.port=8520 --server.address=0.0.0.0
+ExecStart=/home/projects/GH_summariser/.venv/bin/python -m uvicorn api.main:app --host 0.0.0.0 --port 8001
+Restart=on-failure
+RestartSec=5
+
+# Give it time to start/stop
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+# Use clean termination
+KillMode=mixed
+KillSignal=SIGTERM
+
+
+[Install]
+WantedBy=multi-user.target
