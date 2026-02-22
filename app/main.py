@@ -15,11 +15,16 @@ import requests
 DEFAULT_WORD_COUNT = 500
 DEFAULT_MAX_SIZE = 10485760  # 10MB
 DEFAULT_EXCLUDE_PATTERNS = [
+    # Binary/media files
     "*.pdf", "*.csv", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.svg", "*.ico",
     "*.mp3", "*.mp4", "*.wav", "*.zip", "*.tar", "*.gz", "*.rar", "*.7z",
     "*.exe", "*.dll", "*.so", "*.bin", "*.dat", "*.db", "*.sqlite",
     "*.xls", "*.xlsx", "*.parquet", "*.pickle", "*.pkl",
     "*.h5", "*.hdf5", "*.npy", "*.npz", "*.pth", "*.pt", "*.onnx", "*.tflite", "*.weights",
+    # Lockfiles
+    "*.lock",
+    # Data/output directories
+    "data/*",
 ]
 
 
