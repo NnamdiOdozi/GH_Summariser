@@ -49,14 +49,11 @@ async def gitdigest_endpoint(request: GitdigestRequest):
             "output_file": result["output_file"],
         }
 
-        # Always include content
-        with open(result["output_file"], "r") as f:
-            content = f.read()
-        response_data["content"] = content
-
-        # Include summary if LLM was called
         if request.call_llm_api:
             response_data["summary"] = result.get("summary", "")
+        else:
+            with open(result["output_file"], "r") as f:
+                response_data["content"] = f.read()
 
         return response_data
     except Exception as e:
