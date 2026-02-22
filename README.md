@@ -91,8 +91,14 @@ curl -X 'POST' \
   -H 'Content-Type: application/json' \
   -d '{
   "url": "https://github.com/NnamdiOdozi/mlx-digit-app",
+  "token": "string",
+  "branch": "main",
+  "max_size": 10485760,
   "word_count": 500,
-  "call_llm_api": true
+  "call_llm_api": true,
+  "exclude_patterns": [
+    "string"
+  ]
 }'
 ```
 
