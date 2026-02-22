@@ -95,8 +95,11 @@ def run_gitdigest(
 
         output_file = os.path.join(OUTPUT_DIR, f"{parsed['owner']}-{parsed['repo']}.txt")
 
-        # Try gitingest directly (pip-installed), fall back to uvx gitingest
-        if shutil.which("gitingest"):
+        # Try gitingest: check venv bin dir first, then PATH, then uvx fallback
+        venv_gitingest = os.path.join(os.path.dirname(sys.executable), "gitingest")
+        if os.path.isfile(venv_gitingest):
+            cmd = [venv_gitingest, repo_url, "-o", output_file]
+        elif shutil.which("gitingest"):
             cmd = ["gitingest", repo_url, "-o", output_file]
         else:
             cmd = ["uvx", "gitingest", repo_url, "-o", output_file]
