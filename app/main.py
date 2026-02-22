@@ -145,7 +145,8 @@ def run_gitdigest(
         prompt = prompt_template.replace("{word_count}", str(word_count))
 
         # Call Doubleword API
-        summary = call_doubleword_api(prompt, digest_content)
+        max_tokens = int(word_count * 1.5)
+        summary = call_doubleword_api(prompt, digest_content, max_tokens=max_tokens)
         result_dict["summary"] = summary
 
     # Save result to JSON file for debugging/inspection
@@ -156,7 +157,7 @@ def run_gitdigest(
     return result_dict
 
 
-def call_doubleword_api(prompt: str, digest_content: str) -> str:
+def call_doubleword_api(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WORD_COUNT * 1.5)) -> str:
     """Call Doubleword API to get a summary of the repo."""
 
     dotenv.load_dotenv(".env.claude")
@@ -183,6 +184,8 @@ def call_doubleword_api(prompt: str, digest_content: str) -> str:
                 "content": f"{prompt}\n\n---\n\nRepository Contents:\n{digest_content}"
             }
         ],
+        "max_tokens": max_tokens,
+        "frequency_penalty": 0.3,
     }
 
     response = requests.post(url, headers=headers, json=payload, timeout=300)
