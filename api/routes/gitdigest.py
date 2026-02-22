@@ -1,0 +1,78 @@
+# api/routes/gitdigest.py
+import os
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
+from app.main import run_gitdigest, DEFAULT_WORD_COUNT
+
+router = APIRouter()
+
+class GitdigestRequest(BaseModel):
+    url: str = Field(..., description="GitHub repository URL (e.g., https://github.com/owner/repo)")
+    token: Optional[str] = Field(None, description="GitHub Personal Access Token (required only for private repos)")
+    branch: Optional[str] = Field(None, description="Branch name (defaults to main, or master if main doesn't exist)")
+    max_size: int = Field(10485760, description="Maximum file size in bytes to process (default: 10MB)")
+    word_count: int = Field(DEFAULT_WORD_COUNT, description=f"Desired summary word count (default: {DEFAULT_WORD_COUNT})")
+    call_llm_api: bool = Field(True, description="Whether to call LLM summarization API (default: True)")
+
+
+@router.post("/gitdigest", summary="Ingest GitHub repository for LLM summarization")
+async def gitdigest_endpoint(request: GitdigestRequest):
+    """
+    Clone a GitHub repository and extract its contents for LLM analysis.
+
+    - **url**: GitHub repository URL (public or private)
+    - **token**: Optional GitHub PAT for private repos
+    - **branch**: Branch to clone (defaults to main/master)
+    - **max_size**: Skip files larger than this size in bytes
+    - **word_count**: Target word count for the summary (default: 500)
+    - **call_llm_api**: Whether to call the LLM summarization API (default: True)
+    """
+    try:
+        # Filter out Swagger UI placeholder values
+        token = request.token if request.token and request.token != "string" else None
+        branch = request.branch if request.branch and request.branch != "string" else None
+
+        result = run_gitdigest(
+            url=request.url,
+            token=token,
+            branch=branch,
+            max_size=request.max_size if request.max_size else 10485760,
+            word_count=request.word_count,
+            call_llm_api=request.call_llm_api,
+        )
+
+        response_data = {
+            "status": "success",
+            "output_file": result["output_file"],
+        }
+
+        # Always include content
+        with open(result["output_file"], "r") as f:
+            content = f.read()
+        response_data["content"] = content
+
+        # Include summary if LLM was called
+        if request.call_llm_api:
+            response_data["summary"] = result.get("summary", "")
+
+        return response_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/gitdigest/{filename}", summary="Download digest file")
+async def download_digest(filename: str):
+    """
+    Download a previously generated digest file by filename.
+    """
+    # Security: only allow .txt or .json files in current directory
+    if not (filename.endswith(".txt") or filename.endswith(".json")) or ".." in filename or "/" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    if not os.path.exists(filename):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(filename, filename=filename)

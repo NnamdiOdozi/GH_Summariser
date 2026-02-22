@@ -1,10 +1,8 @@
-# backend/api/main.py
+# api/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # Import the router objects directly
-from api.routes.chat import router as chat_router
-from api.routes.sessions import router as sessions_router
-from api.routes.auth import router as auth_router
+from api.routes.gitdigest import router as gitdigest_router
 
 app = FastAPI(title="GITHUB_SUMMARISER_API", version="1.0.0")
 
@@ -18,7 +16,7 @@ app.add_middleware(
 )
 
 # Include your routes with the router objects
-app.include_router(chat_router, prefix="/api/v1", tags=["GET"])
+app.include_router(gitdigest_router, prefix="/api/v1", tags=["GitDigest"])
 
 
 @app.get("/api/v1/health")
