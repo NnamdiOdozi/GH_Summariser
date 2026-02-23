@@ -72,7 +72,9 @@ async def gitdigest_endpoint(request: GitdigestRequest):
         response_data = {
             "status": "success",
             "output_file": result["output_file"],
+            "branch": result.get("branch"),
             "digest_stats": result["digest_stats"],
+            "directory_tree": result.get("directory_tree", ""),
         }
 
         if request.call_llm_api:

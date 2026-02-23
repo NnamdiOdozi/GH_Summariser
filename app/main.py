@@ -136,13 +136,36 @@ def run_gitdigest(
     words = len(digest_content.split())
     estimated_tokens = int(words * 1.3)
 
+    # Extract directory tree (everything before first ===== separator)
+    tree_separator = "=" * 48
+    directory_tree = ""
+    file_count = 0
+    folder_count = 0
+    if tree_separator in digest_content:
+        directory_tree = digest_content.split(tree_separator)[0].strip()
+        for line in directory_tree.split("\n"):
+            stripped = line.strip()
+            if "├──" in stripped or "└──" in stripped:
+                name = stripped.split("── ", 1)[-1] if "── " in stripped else ""
+                if name.endswith("/"):
+                    folder_count += 1
+                else:
+                    file_count += 1
+
+    # Determine branch used
+    branch_used = branch if branch else parsed.get("branch", "default")
+
     result_dict = {
         "output_file": output_file,
+        "branch": branch_used,
         "digest_stats": {
             "lines": lines,
             "words": words,
             "estimated_tokens": estimated_tokens,
+            "file_count": file_count,
+            "folder_count": folder_count,
         },
+        "directory_tree": directory_tree,
     }
 
     # Optionally call Doubleword API for summarization
@@ -158,8 +181,8 @@ def run_gitdigest(
         if focus:
             prompt += f"\n\nAdditional user instruction: {focus}"
 
-        # Call LLM API
-        max_tokens = int(word_count * 1.5)
+        # Call LLM API (2x multiplier gives headroom for markdown formatting overhead)
+        max_tokens = int(word_count * 2.0)
         summary = call_llm(prompt, digest_content, max_tokens=max_tokens)
         result_dict["summary"] = summary
 
@@ -171,7 +194,7 @@ def run_gitdigest(
     return result_dict
 
 
-def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WORD_COUNT * 1.5)) -> str:
+def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WORD_COUNT * 2.0)) -> str:
     """Call the configured LLM provider to get a summary of the repo."""
 
     dotenv.load_dotenv(".env.claude")

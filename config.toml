@@ -1,5 +1,5 @@
 [llm]
-provider = "doubleword"  # "doubleword" or "openai"
+provider = "openai"  # "doubleword" or "openai"
 frequency_penalty = 0.3
 
 [llm.doubleword]
