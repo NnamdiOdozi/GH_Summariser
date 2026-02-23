@@ -10,9 +10,9 @@ from app.main import run_gitdigest, DEFAULT_WORD_COUNT, OUTPUT_DIR
 router = APIRouter()
 
 class GitdigestRequest(BaseModel):
-    url: str = Field("https://github.com/NnamdiOdozi/mlx-digit-app", description="GitHub repository URL (e.g., https://github.com/owner/repo)")
+    url: str = Field("https://github.com/NnamdiOdozi/mlx-digit-app", description="GitHub repository URL. Can include branch info (e.g., /tree/dev). If no branch is in the URL or the branch field, defaults to the repo's default branch.")
     token: Optional[str] = Field(None, description="GitHub Personal Access Token (required only for private repos)")
-    branch: Optional[str] = Field("main", description="Branch name (defaults to main, or master if main doesn't exist)")
+    branch: Optional[str] = Field(None, description="Branch override (case-sensitive). If set, takes priority over any branch in the URL. Leave empty to auto-detect from URL or use repo default.")
     max_size: int = Field(10485760, description="Maximum file size in bytes to process (default: 10MB)")
     word_count: int = Field(DEFAULT_WORD_COUNT, description=f"Desired summary word count (default: {DEFAULT_WORD_COUNT})")
     call_llm_api: bool = Field(True, description="Whether to call LLM summarization API (default: True)")
@@ -24,9 +24,9 @@ async def gitdigest_endpoint(request: GitdigestRequest):
     """
     Clone a GitHub repository, extract and summarise its contents for LLM analysis.
 
-    - **url**: GitHub repository URL (public or private)
+    - **url**: GitHub repository URL. Can include branch (e.g., `https://github.com/owner/repo/tree/dev`)
     - **token**: Optional GitHub PAT for private repos
-    - **branch**: Branch to clone (defaults to main/master)
+    - **branch**: Optional branch override. If set, takes priority over any branch in the URL
     - **max_size**: Skip files larger than this size in bytes
     - **word_count**: Target word count for the summary (default: 500)
     - **call_llm_api**: Whether to call the LLM summarization API (default: True)
@@ -35,6 +35,9 @@ async def gitdigest_endpoint(request: GitdigestRequest):
         # Filter out Swagger UI placeholder values
         token = request.token if request.token and request.token != "string" else None
         branch = request.branch if request.branch and request.branch != "string" else None
+        exclude_patterns = request.exclude_patterns
+        if exclude_patterns and exclude_patterns == ["string"]:
+            exclude_patterns = None
 
         result = run_gitdigest(
             url=request.url,
@@ -43,7 +46,7 @@ async def gitdigest_endpoint(request: GitdigestRequest):
             max_size=request.max_size if request.max_size else 10485760,
             word_count=request.word_count,
             call_llm_api=request.call_llm_api,
-            exclude_patterns=request.exclude_patterns,
+            exclude_patterns=exclude_patterns,
         )
 
         response_data = {

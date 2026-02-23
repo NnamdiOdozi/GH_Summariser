@@ -14,18 +14,24 @@ import requests
 # Constants and defaults
 DEFAULT_WORD_COUNT = 500
 DEFAULT_MAX_SIZE = 10485760  # 10MB
+DEFAULT_FREQUENCY_PENALTY = 0.3
 OUTPUT_DIR = "git_summaries"
 DEFAULT_EXCLUDE_PATTERNS = [
     # Binary/media files
     "*.pdf", "*.csv", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.svg", "*.ico",
+    "*.webp", "*.avif", "*.jfif", "*.tiff", "*.tif", "*.heic", "*.psd",
     "*.mp3", "*.mp4", "*.wav", "*.zip", "*.tar", "*.gz", "*.rar", "*.7z",
     "*.exe", "*.dll", "*.so", "*.bin", "*.dat", "*.db", "*.sqlite",
     "*.xls", "*.xlsx", "*.parquet", "*.pickle", "*.pkl",
     "*.h5", "*.hdf5", "*.npy", "*.npz", "*.pth", "*.pt", "*.onnx", "*.tflite", "*.weights",
+    # Documents (binary formats)
+    "*.docx", "*.doc", "*.pptx", "*.ppt", "*.odt", "*.odp",
     # Lockfiles
     "*.lock",
     # Data/output directories
     "data/*",
+    # Misc binary artifacts
+    "*.stackdump",
 ]
 
 
@@ -77,55 +83,43 @@ def run_gitdigest(
 
     parsed = parse_github_url(url)
 
-    # Determine branch: try user-specified, then URL branch, then fallbacks
-    initial_branch = branch or parsed.get("branch")
-    branch_fallbacks = []
-    if initial_branch:
-        branch_fallbacks = [initial_branch]
-    branch_fallbacks.extend(["main", "master"])
-
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Try each branch until one works
-    output_file = None
-    for target_branch in branch_fallbacks:
-        # Build clean GitHub URL without branch/path
-        repo_url = f"https://github.com/{parsed['owner']}/{parsed['repo']}"
+    output_file = os.path.join(OUTPUT_DIR, f"{parsed['owner']}-{parsed['repo']}.txt")
 
-        output_file = os.path.join(OUTPUT_DIR, f"{parsed['owner']}-{parsed['repo']}.txt")
+    # If user specified a branch explicitly, embed it in the URL for gitingest
+    # (gitingest handles /tree/branch URLs natively and more reliably than -b flag)
+    if branch:
+        repo_url = f"https://github.com/{parsed['owner']}/{parsed['repo']}/tree/{branch}"
+    else:
+        repo_url = url
 
-        # Try gitingest: check venv bin dir first, then PATH, then uvx fallback
-        venv_gitingest = os.path.join(os.path.dirname(sys.executable), "gitingest")
-        if os.path.isfile(venv_gitingest):
-            cmd = [venv_gitingest, repo_url, "-o", output_file]
-        elif shutil.which("gitingest"):
-            cmd = ["gitingest", repo_url, "-o", output_file]
-        else:
-            cmd = ["uvx", "gitingest", repo_url, "-o", output_file]
+    # Build gitingest command
+    venv_gitingest = os.path.join(os.path.dirname(sys.executable), "gitingest")
+    if os.path.isfile(venv_gitingest):
+        cmd = [venv_gitingest, repo_url, "-o", output_file]
+    elif shutil.which("gitingest"):
+        cmd = ["gitingest", repo_url, "-o", output_file]
+    else:
+        cmd = ["uvx", "gitingest", repo_url, "-o", output_file]
 
-        cmd.extend(["-b", target_branch])
+    if token:
+        cmd.extend(["-t", token])
 
-        if token:
-            cmd.extend(["-t", token])
+    if max_size:
+        cmd.extend(["-s", str(max_size)])
 
-        if max_size:
-            cmd.extend(["-s", str(max_size)])
+    patterns = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDE_PATTERNS
+    for pat in patterns:
+        cmd.extend(["-e", pat])
 
-        patterns = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDE_PATTERNS
-        for pat in patterns:
-            cmd.extend(["-e", pat])
+    print(f"DEBUG cmd: {cmd}", file=sys.stderr)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    print(f"DEBUG rc={result.returncode} stderr={result.stderr[:500]}", file=sys.stderr)
 
-        print(f"DEBUG cmd: {cmd}", file=sys.stderr)
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        print(f"DEBUG rc={result.returncode} stderr={result.stderr[:500]}", file=sys.stderr)
-
-        if result.returncode == 0:
-            print(f"Successfully cloned branch: {target_branch}")
-            break
-        else:
-            print(f"Branch '{target_branch}' failed (rc={result.returncode})", file=sys.stderr)
-            continue
+    if result.returncode != 0:
+        raise RuntimeError(f"gitingest failed: {result.stderr.strip()}")
 
     result_dict = {
         "output_file": output_file,
@@ -169,7 +163,7 @@ def call_doubleword_api(prompt: str, digest_content: str, max_tokens: int = int(
     if not api_token or not base_url:
         raise ValueError("DOUBLEWORD_AUTH_TOKEN and DOUBLEWORD_BASE_URL must be set")
 
-    url = f"{base_url}/v1/chat/completions"
+    url = f"{base_url.rstrip('/')}/chat/completions"
 
     headers = {
         "Authorization": f"Bearer {api_token}",
@@ -185,7 +179,7 @@ def call_doubleword_api(prompt: str, digest_content: str, max_tokens: int = int(
             }
         ],
         "max_tokens": max_tokens,
-        "frequency_penalty": 0.3,
+        "frequency_penalty": DEFAULT_FREQUENCY_PENALTY,
     }
 
     response = requests.post(url, headers=headers, json=payload, timeout=300)

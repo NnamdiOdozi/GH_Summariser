@@ -203,3 +203,6 @@ old_batches/
 
 # Generated digest/summary outputs
 git_summaries/
+
+# Test outputs
+tests/

@@ -46,16 +46,28 @@ The API runs on `http://127.0.0.1:8001` (Swagger UI at `/docs`).
 | GET | `/api/v1/gitdigest/{filename}` | Download a digest file |
 | GET | `/api/v1/health` | Health check |
 
+## Branch Selection
+
+You can specify a branch in two ways:
+
+1. **Embed it in the URL** — e.g., `https://github.com/owner/repo/tree/dev` or `https://github.com/owner/repo/tree/feature/my-branch` (branch names with slashes are supported)
+2. **Use the branch parameter** — set `branch` in the API request body or `-b` on the CLI. This overrides any branch in the URL.
+
+If no branch is specified (either way), the repo's default branch is used.
+
+**Note:** Branch names are case-sensitive (e.g., `Tuong` and `tuong` are different branches).
+
 ## Default File Exclusions
 
 To keep digests focused on source code and reduce LLM token usage, the following file types are excluded by default:
 
 | Category | Patterns |
 |----------|----------|
-| **Binary/media** | `*.pdf`, `*.jpg`, `*.jpeg`, `*.png`, `*.gif`, `*.bmp`, `*.svg`, `*.ico`, `*.mp3`, `*.mp4`, `*.wav` |
+| **Binary/media** | `*.pdf`, `*.jpg`, `*.jpeg`, `*.png`, `*.gif`, `*.bmp`, `*.svg`, `*.ico`, `*.webp`, `*.avif`, `*.jfif`, `*.tiff`, `*.tif`, `*.heic`, `*.psd`, `*.mp3`, `*.mp4`, `*.wav` |
 | **Archives** | `*.zip`, `*.tar`, `*.gz`, `*.rar`, `*.7z` |
 | **Executables/libs** | `*.exe`, `*.dll`, `*.so`, `*.bin` |
 | **Data files** | `*.csv`, `*.dat`, `*.db`, `*.sqlite`, `*.xls`, `*.xlsx`, `*.parquet` |
+| **Documents (binary)** | `*.docx`, `*.doc`, `*.pptx`, `*.ppt`, `*.odt`, `*.odp` |
 | **ML model weights** | `*.pickle`, `*.pkl`, `*.h5`, `*.hdf5`, `*.npy`, `*.npz`, `*.pth`, `*.pt`, `*.onnx`, `*.tflite`, `*.weights` |
 | **Lockfiles** | `*.lock` (uv.lock, package-lock.json, etc.) |
 | **Data directories** | `data/*` |
@@ -74,18 +86,16 @@ gitdigest -u https://github.com/owner/repo -e "*.csv" -e "*.log"
 ```json
 {
   "url": "https://github.com/NnamdiOdozi/mlx-digit-app",
-  "token": "string",
-  "branch": "main",
   "max_size": 10485760,
   "word_count": 500,
-  "call_llm_api": true,
-  "exclude_patterns": [
-    "string"
-  ]
+  "call_llm_api": true
 }
 ```
 
-When `exclude_patterns` is `null` (or omitted), the built-in defaults above are used. Pass an explicit list to override.
+**Optional fields:**
+- `token` — GitHub PAT, only needed for private repos
+- `branch` — Override branch (case-sensitive). Omit to auto-detect from URL or use repo default
+- `exclude_patterns` — Custom glob patterns. When omitted or `null`, the built-in defaults above are used
 
 ## Example CURL request
 
@@ -96,14 +106,23 @@ curl -X 'POST' \
   -H 'Content-Type: application/json' \
   -d '{
   "url": "https://github.com/NnamdiOdozi/mlx-digit-app",
-  "token": "string",
-  "branch": "main",
-  "max_size": 10485760,
   "word_count": 500,
-  "call_llm_api": true,
-  "exclude_patterns": [
-    "string"
-  ]
+  "call_llm_api": true
+}'
+```
+
+With branch and token (private repo, specific branch):
+
+```bash
+curl -X 'POST' \
+  'http://localhost:8001/api/v1/gitdigest' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://github.com/owner/repo",
+  "token": "ghp_your_token_here",
+  "branch": "dev",
+  "call_llm_api": true
 }'
 ```
 
