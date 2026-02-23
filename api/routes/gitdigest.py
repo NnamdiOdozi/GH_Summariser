@@ -11,8 +11,8 @@ router = APIRouter()
 
 class GitdigestRequest(BaseModel):
     url: str = Field("https://github.com/NnamdiOdozi/mlx-digit-app", description="GitHub repository URL. Can include branch info (e.g., /tree/dev). If no branch is in the URL or the branch field, defaults to the repo's default branch.")
-    token: Optional[str] = Field(None, description="GitHub Personal Access Token (required only for private repos)")
-    branch: Optional[str] = Field(None, description="Branch override (case-sensitive). If set, takes priority over any branch in the URL. Leave empty to auto-detect from URL or use repo default.")
+    token: Optional[str] = Field(None, description="GitHub Personal Access Token (required only for private repos)", examples=[""])
+    branch: Optional[str] = Field(None, description="Branch override (case-sensitive). If set, takes priority over any branch in the URL. Leave empty to auto-detect from URL or use repo default.", examples=[""])
     max_size: int = Field(10485760, description="Maximum file size in bytes to process (default: 10MB)")
     word_count: int = Field(DEFAULT_WORD_COUNT, description=f"Desired summary word count (default: {DEFAULT_WORD_COUNT})")
     call_llm_api: bool = Field(True, description="Whether to call LLM summarization API (default: True)")
