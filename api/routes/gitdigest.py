@@ -3,7 +3,7 @@ import os
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from app.main import run_gitdigest, DEFAULT_WORD_COUNT, DEFAULT_MAX_SIZE, OUTPUT_DIR
 
@@ -107,6 +107,77 @@ async def download_digest(filename: str):
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(filepath, filename=filename)
+
+
+@router.get("/gitdigest/{filename}/preview", summary="Preview digest as formatted Markdown")
+async def preview_digest(filename: str):
+    """
+    Returns a previously generated digest as a formatted Markdown document.
+
+    Use the `_llm.json` filename (e.g., `NnamdiOdozi-mlx-digit-app_llm.json`).
+    Can also be used with `.txt` files to preview the raw digest.
+    """
+    import json as _json
+
+    filename = os.path.basename(filename)
+
+    if not (filename.endswith(".txt") or filename.endswith(".json")) or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename. Use e.g. owner-repo_llm.json")
+
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # For .txt files, wrap in a code block
+    if filename.endswith(".txt"):
+        with open(filepath, "r") as f:
+            content = f.read()
+        md = f"# Raw Digest\n\n```\n{content}\n```"
+        return PlainTextResponse(md, media_type="text/markdown")
+
+    # For .json files, format as Markdown
+    with open(filepath, "r") as f:
+        data = _json.load(f)
+
+    parts = []
+
+    # Header
+    output_file = data.get("output_file", filename)
+    repo_name = os.path.basename(output_file).replace(".txt", "").replace("_llm", "")
+    parts.append(f"# {repo_name}\n")
+
+    # Branch and stats
+    branch = data.get("branch")
+    if branch:
+        parts.append(f"**Branch:** {branch}\n")
+
+    stats = data.get("digest_stats", {})
+    if stats:
+        parts.append("## Digest Stats\n")
+        parts.append("| Metric | Value |")
+        parts.append("|--------|-------|")
+        parts.append(f"| Lines | {stats.get('lines', 'N/A'):,} |")
+        parts.append(f"| Words | {stats.get('words', 'N/A'):,} |")
+        parts.append(f"| Estimated tokens | {stats.get('estimated_tokens', 'N/A'):,} |")
+        parts.append(f"| Files | {stats.get('file_count', 'N/A')} |")
+        parts.append(f"| Folders | {stats.get('folder_count', 'N/A')} |")
+        parts.append("")
+
+    # Directory tree
+    tree = data.get("directory_tree", "")
+    if tree:
+        parts.append("## Directory Tree\n")
+        parts.append(f"```\n{tree}\n```\n")
+
+    # Summary
+    summary = data.get("summary", "")
+    if summary:
+        parts.append("## Summary\n")
+        parts.append(summary)
+        parts.append("")
+
+    md = "\n".join(parts)
+    return PlainTextResponse(md, media_type="text/markdown")
 
 
 @router.get("/prompt", summary="View the default summary prompt")

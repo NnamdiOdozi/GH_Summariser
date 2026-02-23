@@ -6,7 +6,7 @@ Key features (bullets) inxl key modules
 
 How to run / use (2–5 bullets)
 
-Repo structure (short) incl stats: { languages, file_counts, bytes_read }
+Languages and tech stack used (the directory tree, file count, and folder count are provided separately in the API response, so do not reproduce them here)
 
 Quality signals (tests/CI/docs), anything that is missing eg licences
 

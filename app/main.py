@@ -17,28 +17,12 @@ CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.t
 with open(CONFIG_PATH, "rb") as _f:
     CONFIG = tomllib.load(_f)
 
-# Constants and defaults
-DEFAULT_WORD_COUNT = 750
-DEFAULT_MAX_SIZE = 10485760  # 10MB
+# Constants and defaults — all read from config.toml
+DEFAULT_WORD_COUNT = CONFIG["digest"]["default_word_count"]
+DEFAULT_MAX_SIZE = CONFIG["digest"]["default_max_size"]
 DEFAULT_FREQUENCY_PENALTY = CONFIG["llm"].get("frequency_penalty", 0.3)
-OUTPUT_DIR = "git_summaries"
-DEFAULT_EXCLUDE_PATTERNS = [
-    # Binary/media files
-    "*.pdf", "*.csv", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.svg", "*.ico",
-    "*.webp", "*.avif", "*.jfif", "*.tiff", "*.tif", "*.heic", "*.psd",
-    "*.mp3", "*.mp4", "*.wav", "*.zip", "*.tar", "*.gz", "*.rar", "*.7z",
-    "*.exe", "*.dll", "*.so", "*.bin", "*.dat", "*.db", "*.sqlite",
-    "*.xls", "*.xlsx", "*.parquet", "*.pickle", "*.pkl",
-    "*.h5", "*.hdf5", "*.npy", "*.npz", "*.pth", "*.pt", "*.onnx", "*.tflite", "*.weights",
-    # Documents (binary formats)
-    "*.docx", "*.doc", "*.pptx", "*.ppt", "*.odt", "*.odp",
-    # Lockfiles
-    "*.lock",
-    # Data/output directories
-    "data/*",
-    # Misc binary artifacts
-    "*.stackdump",
-]
+OUTPUT_DIR = CONFIG["digest"]["output_dir"]
+DEFAULT_EXCLUDE_PATTERNS = CONFIG["digest"]["default_exclude_patterns"]
 
 
 def parse_github_url(url: str) -> dict:
@@ -228,7 +212,7 @@ def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WOR
         "frequency_penalty": DEFAULT_FREQUENCY_PENALTY,
     }
 
-    response = requests.post(url, headers=headers, json=payload, timeout=300)
+    response = requests.post(url, headers=headers, json=payload, timeout=CONFIG["llm"].get("timeout", 300))
     response.raise_for_status()
 
     result = response.json()
