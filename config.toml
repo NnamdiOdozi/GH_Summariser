@@ -22,6 +22,10 @@ default_exclude_patterns = [
     "*.lock",
     # Data/output directories
     "data/*",
+    # Package manager and virtual environment directories
+    "node_modules/*",
+    ".venv/*",
+    "venv/*",
     # Misc binary artifacts
     "*.stackdump",
 ]
@@ -47,3 +51,9 @@ base_url = "https://api.openai.com/v1"
 model = "gpt-4.1-mini"  # fallback; overridden by OPENAI_MODEL env var if set
 model_env = "OPENAI_MODEL"
 auth_env = "OPENAI_API_KEY"
+
+[llm.nebius]
+base_url = "https://api.tokenfactory.nebius.com/v1/"
+model = "MiniMaxAI/MiniMax-M2.1" # fallback; overridden by OPENAI_MODEL env var if set
+model_env = "NEBIUS_MODEL"
+auth_env = "NEBIUS_API_KEY"

@@ -48,6 +48,12 @@ auth_env = "DOUBLEWORD_AUTH_TOKEN"
 base_url = "https://api.openai.com/v1"
 model = "gpt-4.1-mini"
 auth_env = "OPENAI_API_KEY"
+
+[llm.nebius]
+base_url = "https://api.tokenfactory.nebius.com/v1/"
+model = "MiniMaxAI/MiniMax-M2.1" # fallback; overridden by OPENAI_MODEL env var if set
+model_env = "NEBIUS_MODEL"
+auth_env = "NEBIUS_API_KEY"
 ```
 
 The `[digest]` section controls output directory, default word count, max file size, and exclusion patterns. The `[llm]` section controls the LLM provider. Both providers use the standard OpenAI-compatible `/chat/completions` endpoint. To add a new provider, add a section under `[llm.your_provider]` with `base_url`, `model`, and `auth_env`.
@@ -60,6 +66,7 @@ Create a `.env.claude` file with:
 GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token
 DOUBLEWORD_AUTH_TOKEN=your_doubleword_token
 OPENAI_API_KEY=your_openai_key
+NEBIUS_API_KEY=your_nebius_key
 ```
 
 Only the key for the active provider (set in `config.toml`) is required.
@@ -71,6 +78,65 @@ uv run python -m api.main
 ```
 
 The API runs on `http://127.0.0.1:8001` (Swagger UI at `/docs`).
+
+## CLI Usage
+
+A command-line wrapper is available for quick local usage without starting the API server.
+
+### First-time setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/NnamdiOdozi/GH_Summariser.git ~/projects/GH_Summariser
+   ```
+
+2. Install dependencies:
+   ```bash
+   cd ~/projects/nebius_git_summariser
+   uv sync
+   ```
+
+3. Add the following function to your `~/.bashrc` (adjust `project_dir` to match your clone location):
+   ```bash
+   # Run from anywhere: gitdigest -u <url> [-t token] [-b branch] [-w word_count] [-c] [-m max_size]
+   gitdigest() {
+       local project_dir="$HOME/projects/GH_Summariser"
+
+       # Load env vars from project
+       if [ -f "$project_dir/.env.claude" ]; then
+           set -a
+           source "$project_dir/.env.claude"
+           set +a
+       fi
+
+       # Add project to PYTHONPATH to avoid import warnings
+       export PYTHONPATH="$project_dir:$PYTHONPATH"
+
+       # Run CLI from current directory (no cd needed - runs where you call from)
+       uv run --project "$project_dir" python "$project_dir/app/main.py" "$@"
+   }
+   ```
+
+4. Reload your shell:
+   ```bash
+   source ~/.bashrc
+   ```
+
+### CLI Examples
+
+```bash
+# Basic digest without LLM summary
+gitdigest -u https://github.com/owner/repo
+
+# With LLM summary (-c flag)
+gitdigest -u https://github.com/owner/repo -c
+
+# Specific branch and word count
+gitdigest -u https://github.com/owner/repo -b dev -w 1000 -c
+
+# Private repo with token
+gitdigest -u https://github.com/owner/private-repo -t ghp_your_token -c
+```
 
 ## API Endpoints
 
@@ -107,6 +173,7 @@ To keep digests focused on source code and reduce LLM token usage, the following
 | **ML model weights** | `*.pickle`, `*.pkl`, `*.h5`, `*.hdf5`, `*.npy`, `*.npz`, `*.pth`, `*.pt`, `*.onnx`, `*.tflite`, `*.weights` |
 | **Lockfiles** | `*.lock` (uv.lock, package-lock.json, etc.) |
 | **Data directories** | `data/*` |
+| **Package/venv dirs** | `node_modules/*`, `.venv/*`, `venv/*` |
 
 **Why?** Binary files, model weights, and data directories can add thousands of lines to a digest without providing useful information for code summarization. Lockfiles list pinned dependency versions that add bulk without insight. Excluding these by default typically reduces digest size by 50-80%.
 
@@ -226,22 +293,49 @@ The directory tree, file count, and folder count in the API response are parsed 
 
 If gitingest changes its output format in a future version, the tree extraction and file/folder counting will need to be updated. The core digest and LLM summarization would still work — only the parsed metadata fields (`directory_tree`, `file_count`, `folder_count`) would be affected.
 
-## Future Development
+## Context Window Limitations
 
-### Handling large codebases (map-reduce summarization)
+This tool is designed for **small to medium-sized codebases**. The current implementation sends the entire repository digest to the LLM in a single request, which works well when the digest fits within the model's context window.
 
-The current approach sends the entire gitingest digest to the LLM in a single request. This works well for small-to-medium repositories, but large codebases can produce digests that exceed the LLM's context window.
+**Current provider limits:**
+- Doubleword and OpenAI models used by this tool typically have context windows of less than 200,000 tokens
+- A repository digest with ~150K words would produce roughly 195K tokens (using the 1.3x multiplier)
 
-A proven approach to handle this is **map-reduce summarization**:
+The `digest_stats.estimated_tokens` field in the API response tells you whether your digest will fit. If it exceeds your model's context limit, the LLM call will fail or produce truncated results.
 
-1. **Map phase** — Split the raw digest (`.txt` file) into chunks that fit within the LLM context limit. Send each chunk individually to the LLM for summarization.
-2. **Reduce phase** — Aggregate the per-chunk summaries and send them to the LLM with an instruction to produce a single cohesive summary of the entire repository.
+### Options for Larger Codebases
 
-This pattern is well-established in LLM pipelines (e.g., LangChain's `MapReduceDocumentsChain`) and would allow the tool to handle repositories of any size without hitting context limits.
+If you need to summarize repositories that exceed the context window, consider these approaches:
 
-Other approaches that could be used include:
+1. **Use larger context models**
+   - Google Gemini models offer up to 1M+ token context windows
+   - Claude Opus 4.6 and Sonnet 4.6 (currently in beta) support 1M token contexts
+   - Configure via `config.toml` by adding a new provider section with the appropriate base URL and model
 
-- **Vector database** — Embed chunks of the digest into a vector store and use retrieval-augmented generation (RAG) to answer targeted questions
-- **Git Nexus**
-- **RLM (Recursive Language Model)** 
-- **Page index** — Build a searchable index of the digest with page/section references for on-demand lookup
+2. **Add exclusion patterns**
+   - Exclude large directories that aren't essential for understanding the codebase
+   - Use the `exclude_patterns` API parameter: `["tests/*", "docs/*", "examples/*", "fixtures/*"]`
+   - Excluding test files, documentation, and example directories can significantly reduce digest size
+
+3. **Map-reduce summarization**
+   - Split the digest into chunks that fit within the context limit
+   - **Map phase**: Send each chunk individually to the LLM for summarization
+   - **Reduce phase**: Aggregate the per-chunk summaries and produce a cohesive final summary
+   - This pattern is well-established in LLM pipelines (e.g., LangChain's `MapReduceDocumentsChain`)
+
+4. **Recursive Language Models (RLMs)**
+   - Give the LLM access to file exploration tools (bash, grep, ripgrep, find)
+   - The agent recursively calls sub-LLMs to explore and summarize different parts of the codebase
+   - Eg each sub-agent focuses on a specific directory or module, reporting findings back to a parent agent
+   - Achieves good accuracy and performance on large codebases without loading everything into context at once
+
+5. **RAG (Retrieval-Augmented Generation)**
+   - Embed chunks of the digest into a vector database
+   - Query the vector store with specific questions and retrieve relevant context
+   - Send only the relevant chunks to the LLM with your question
+   - Tools: Chroma, Pinecone, Weaviate, or pgvector
+
+6. **Page index / searchable index**
+   - Build a searchable index of the digest with section references
+   - Enable on-demand lookup of specific modules or files
+   - Useful when you need to answer targeted questions rather than generate a full summary
