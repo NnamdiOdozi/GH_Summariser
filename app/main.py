@@ -5,16 +5,22 @@ import subprocess
 import sys
 import json
 import argparse
+import tomllib
 from urllib.parse import urlparse
 
 import dotenv
 import requests
 
 
+# Load config from config.toml
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.toml")
+with open(CONFIG_PATH, "rb") as _f:
+    CONFIG = tomllib.load(_f)
+
 # Constants and defaults
 DEFAULT_WORD_COUNT = 750
 DEFAULT_MAX_SIZE = 10485760  # 10MB
-DEFAULT_FREQUENCY_PENALTY = 0.3
+DEFAULT_FREQUENCY_PENALTY = CONFIG["llm"].get("frequency_penalty", 0.3)
 OUTPUT_DIR = "git_summaries"
 DEFAULT_EXCLUDE_PATTERNS = [
     # Binary/media files
@@ -78,9 +84,9 @@ def run_gitdigest(
     exclude_patterns: list = None,
     word_count: int = DEFAULT_WORD_COUNT,
     call_llm_api: bool = True,
-    user_prompt: str = None,
+    focus: str = None,
 ) -> dict:
-    """Run gitingest on a GitHub URL and optionally call Doubleword API for summarization."""
+    """Run gitingest on a GitHub URL and optionally call LLM API for summarization."""
 
     parsed = parse_github_url(url)
 
@@ -148,13 +154,13 @@ def run_gitdigest(
 
         prompt = prompt_template.replace("{word_count}", str(word_count))
 
-        # Append user's custom prompt if provided
-        if user_prompt:
-            prompt += f"\n\nAdditional user instruction: {user_prompt}"
+        # Append user's focus instruction if provided
+        if focus:
+            prompt += f"\n\nAdditional user instruction: {focus}"
 
-        # Call Doubleword API
+        # Call LLM API
         max_tokens = int(word_count * 1.5)
-        summary = call_doubleword_api(prompt, digest_content, max_tokens=max_tokens)
+        summary = call_llm(prompt, digest_content, max_tokens=max_tokens)
         result_dict["summary"] = summary
 
     # Save result to JSON file for debugging/inspection
@@ -165,17 +171,20 @@ def run_gitdigest(
     return result_dict
 
 
-def call_doubleword_api(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WORD_COUNT * 1.5)) -> str:
-    """Call Doubleword API to get a summary of the repo."""
+def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WORD_COUNT * 1.5)) -> str:
+    """Call the configured LLM provider to get a summary of the repo."""
 
     dotenv.load_dotenv(".env.claude")
 
-    api_token = os.getenv("DOUBLEWORD_AUTH_TOKEN")
-    base_url = os.getenv("DOUBLEWORD_BASE_URL")
-    model = os.getenv("DOUBLEWORD_MODEL", "default-model")
+    provider = CONFIG["llm"]["provider"]
+    provider_config = CONFIG["llm"][provider]
 
-    if not api_token or not base_url:
-        raise ValueError("DOUBLEWORD_AUTH_TOKEN and DOUBLEWORD_BASE_URL must be set")
+    api_token = os.getenv(provider_config["auth_env"])
+    base_url = provider_config["base_url"]
+    model = os.getenv(provider_config.get("model_env", ""), "") or provider_config["model"]
+
+    if not api_token:
+        raise ValueError(f"{provider_config['auth_env']} must be set in environment")
 
     url = f"{base_url.rstrip('/')}/chat/completions"
 
