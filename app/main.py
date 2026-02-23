@@ -12,7 +12,7 @@ import requests
 
 
 # Constants and defaults
-DEFAULT_WORD_COUNT = 500
+DEFAULT_WORD_COUNT = 750
 DEFAULT_MAX_SIZE = 10485760  # 10MB
 DEFAULT_FREQUENCY_PENALTY = 0.3
 OUTPUT_DIR = "git_summaries"
@@ -78,6 +78,7 @@ def run_gitdigest(
     exclude_patterns: list = None,
     word_count: int = DEFAULT_WORD_COUNT,
     call_llm_api: bool = True,
+    user_prompt: str = None,
 ) -> dict:
     """Run gitingest on a GitHub URL and optionally call Doubleword API for summarization."""
 
@@ -121,22 +122,35 @@ def run_gitdigest(
     if result.returncode != 0:
         raise RuntimeError(f"gitingest failed: {result.stderr.strip()}")
 
+    # Read the digest file and compute stats
+    with open(output_file, "r") as f:
+        digest_content = f.read()
+
+    lines = digest_content.count("\n")
+    words = len(digest_content.split())
+    estimated_tokens = int(words * 1.3)
+
     result_dict = {
         "output_file": output_file,
+        "digest_stats": {
+            "lines": lines,
+            "words": words,
+            "estimated_tokens": estimated_tokens,
+        },
     }
 
     # Optionally call Doubleword API for summarization
     if call_llm_api:
-        # Read the digest file
-        with open(output_file, "r") as f:
-            digest_content = f.read()
-
         # Read prompt and substitute word_count
         prompt_path = os.path.join(os.path.dirname(__file__), "prompt.txt")
         with open(prompt_path, "r") as f:
             prompt_template = f.read()
 
         prompt = prompt_template.replace("{word_count}", str(word_count))
+
+        # Append user's custom prompt if provided
+        if user_prompt:
+            prompt += f"\n\nAdditional user instruction: {user_prompt}"
 
         # Call Doubleword API
         max_tokens = int(word_count * 1.5)
