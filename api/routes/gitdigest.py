@@ -23,7 +23,7 @@ class GitdigestRequest(BaseModel):
 @router.post("/gitdigest", summary="Ingest GitHub repository for LLM summarization")
 async def gitdigest_endpoint(request: GitdigestRequest):
     """
-    Clone a GitHub repository, extract and summarise its contents for LLM analysis.
+    Clone a GitHub repository, extract and summarise its contents for LLM analysis. Below are the request parameters:
 
     - **url**: GitHub repository URL. Can include branch (e.g., `https://github.com/owner/repo/tree/dev`)
     - **token**: Optional GitHub PAT for private repos
