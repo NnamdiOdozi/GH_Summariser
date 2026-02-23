@@ -26,6 +26,11 @@ default_exclude_patterns = [
     "*.stackdump",
 ]
 
+[logging]
+level = "INFO"  # DEBUG, INFO, WARNING, ERROR
+log_dir = "logs"
+log_file = "api.log"
+
 [llm]
 provider = "doubleword"  # "doubleword" or "openai"
 frequency_penalty = 0.3

@@ -1,11 +1,15 @@
 # api/routes/gitdigest.py
+import logging
 import os
+import time
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from app.main import run_gitdigest, DEFAULT_WORD_COUNT, DEFAULT_MAX_SIZE, OUTPUT_DIR
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -48,16 +52,21 @@ async def gitdigest_endpoint(request: GitdigestRequest):
     - "Focus on the authentication and security implementation"
     - "Focus on the test coverage and CI/CD setup"
     """
+    # Filter out Swagger UI placeholder values
+    token = request.token if request.token and request.token != "string" else None
+    branch = request.branch if request.branch and request.branch != "string" else None
+    exclude_patterns = request.exclude_patterns
+    if exclude_patterns and exclude_patterns == ["string"]:
+        exclude_patterns = None
+    focus = request.focus if request.focus and request.focus != "string" else None
+
+    logger.info(
+        "POST /gitdigest url=%s branch=%s llm=%s word_count=%d focus=%s",
+        request.url, branch, request.call_llm_api, request.word_count, focus,
+    )
+    t0 = time.time()
+
     try:
-        # Filter out Swagger UI placeholder values
-        token = request.token if request.token and request.token != "string" else None
-        branch = request.branch if request.branch and request.branch != "string" else None
-        exclude_patterns = request.exclude_patterns
-        if exclude_patterns and exclude_patterns == ["string"]:
-            exclude_patterns = None
-
-        focus = request.focus if request.focus and request.focus != "string" else None
-
         result = run_gitdigest(
             url=request.url,
             token=token,
@@ -83,8 +92,12 @@ async def gitdigest_endpoint(request: GitdigestRequest):
             with open(result["output_file"], "r") as f:
                 response_data["content"] = f.read()
 
+        elapsed = time.time() - t0
+        logger.info("POST /gitdigest completed in %.1fs (status=success)", elapsed)
         return response_data
     except Exception as e:
+        elapsed = time.time() - t0
+        logger.error("POST /gitdigest failed after %.1fs: %s", elapsed, e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

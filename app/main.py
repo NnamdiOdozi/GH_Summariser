@@ -1,15 +1,19 @@
+import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
 import json
+import time
 import argparse
 import tomllib
 from urllib.parse import urlparse
 
 import dotenv
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 # Load config from config.toml
@@ -105,11 +109,15 @@ def run_gitdigest(
     for pat in patterns:
         cmd.extend(["-e", pat])
 
-    print(f"DEBUG cmd: {cmd}", file=sys.stderr)
+    logger.info("Running gitingest for %s/%s", parsed["owner"], parsed["repo"])
+    logger.debug("gitingest cmd: %s", cmd)
+    t0 = time.time()
     result = subprocess.run(cmd, capture_output=True, text=True)
-    print(f"DEBUG rc={result.returncode} stderr={result.stderr[:500]}", file=sys.stderr)
+    elapsed = time.time() - t0
+    logger.info("gitingest finished in %.1fs (rc=%d)", elapsed, result.returncode)
 
     if result.returncode != 0:
+        logger.error("gitingest failed: %s", result.stderr.strip())
         raise RuntimeError(f"gitingest failed: {result.stderr.strip()}")
 
     # Read the digest file and compute stats
@@ -167,7 +175,11 @@ def run_gitdigest(
 
         # Call LLM API (2x multiplier gives headroom for markdown formatting overhead)
         max_tokens = int(word_count * 2.0)
+        logger.info("Calling LLM (provider=%s, max_tokens=%d)", CONFIG["llm"]["provider"], max_tokens)
+        t0 = time.time()
         summary = call_llm(prompt, digest_content, max_tokens=max_tokens)
+        elapsed = time.time() - t0
+        logger.info("LLM response received in %.1fs (%d words)", elapsed, len(summary.split()))
         result_dict["summary"] = summary
 
     # Save result to JSON file for debugging/inspection
@@ -192,6 +204,8 @@ def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WOR
 
     if not api_token:
         raise ValueError(f"{provider_config['auth_env']} must be set in environment")
+
+    logger.debug("LLM provider=%s model=%s base_url=%s", provider, model, base_url)
 
     url = f"{base_url.rstrip('/')}/chat/completions"
 

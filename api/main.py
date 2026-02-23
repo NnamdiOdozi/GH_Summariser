@@ -1,8 +1,34 @@
 # api/main.py
+import logging
+import os
+import tomllib
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # Import the router objects directly
 from api.routes.gitdigest import router as gitdigest_router
+
+# --- Logging setup (reads from config.toml) ---
+_config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.toml")
+with open(_config_path, "rb") as _f:
+    _config = tomllib.load(_f)
+
+_log_cfg = _config.get("logging", {})
+_log_dir = _log_cfg.get("log_dir", "logs")
+_log_file = _log_cfg.get("log_file", "api.log")
+_log_level = _log_cfg.get("level", "INFO")
+
+os.makedirs(_log_dir, exist_ok=True)
+
+logging.basicConfig(
+    level=getattr(logging, _log_level, logging.INFO),
+    format="%(asctime)s %(levelname)-5s %(name)s  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.FileHandler(os.path.join(_log_dir, _log_file)),
+        logging.StreamHandler(),
+    ],
+)
 
 app = FastAPI(title="GITHUB_SUMMARISER_API", version="1.0.0")
 

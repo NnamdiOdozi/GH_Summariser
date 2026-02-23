@@ -18,10 +18,18 @@
 - Avoid bloated code that handles too many eventualities. Simple code with clear failure modes is easier to debug than over-engineered code with graceful fallbacks nobody will ever trigger.
 - Prefer flat code over deeply nested conditionals. Early returns are clearer than nested if/else chains.
 
-### Logging and Output
-- Use logging with timestamps so errors can be traced. `print(..., file=sys.stderr)` for debug output; structured logging for production.
-- Generated output files (digests, summaries, logs) should go in a dedicated directory (e.g., `git_summaries/`, `logs/`) to keep the project root clean.
-- Output directories and log directories should be gitignored since they contain generated artifacts.
+### Logging
+- Use Python's `logging` module with timestamps and log levels — not bare `print()` statements. Format should include timestamp, level, and message at minimum (e.g., `2025-06-15 14:32:01 INFO  Processing repo owner/repo`).
+- Log to a file in a dedicated `logs/` directory at the project root (e.g., `logs/api.log`). This directory should be gitignored.
+- Log enough context to trace what happened: request parameters, which external calls were made, timing of slow operations (LLM calls, subprocess runs), and full tracebacks on errors.
+- Replace ad-hoc `print(..., file=sys.stderr)` debug statements with proper logger calls before shipping. Debug prints are fine during development but should not persist in committed code.
+- Generated output files (digests, summaries) should also go in dedicated directories (e.g., `git_summaries/`) to keep the project root clean. These directories should be gitignored.
+
+### Testing
+- Keep test outputs in a dedicated `tests/` directory at the project root, gitignored.
+- Each test should capture both **inputs** (the parameters or request body sent) and **outputs** (the response or result received) so that you can reconcile what went in vs what came out. Store these together — either as fields in a single JSON file, columns in a TSV, or equivalent structured format.
+- Name test output files descriptively so the scenario is obvious from the filename (e.g., `test_basic_no_llm.json`, `test_with_focus.json`, `test_openai_llm.json`).
+- For API testing, save the full request payload alongside the response. This makes it easy to reproduce issues and compare runs over time.
 
 ### README Standards
 - Every README should include an **effective date** indicating when the documentation was last verified against the codebase.
