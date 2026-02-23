@@ -138,3 +138,16 @@ All output files are saved to the `git_summaries/` directory to keep the project
 - `git_summaries/owner-repo_llm.json` — JSON with digest + LLM summary (only when LLM is called)
 
 This directory is gitignored since these are generated outputs.
+
+## Future Development
+
+### Handling large codebases (map-reduce summarization)
+
+The current approach sends the entire gitingest digest to the LLM in a single request. This works well for small-to-medium repositories, but large codebases can produce digests that exceed the LLM's context window.
+
+A proven approach to handle this is **map-reduce summarization**:
+
+1. **Map phase** — Split the raw digest (`.txt` file) into chunks that fit within the LLM context limit. Send each chunk individually to the LLM for summarization.
+2. **Reduce phase** — Aggregate the per-chunk summaries and send them to the LLM with an instruction to produce a single cohesive summary of the entire repository.
+
+This pattern is well-established in LLM pipelines (e.g., LangChain's `MapReduceDocumentsChain`) and would allow the tool to handle repositories of any size without hitting context limits.

@@ -30,6 +30,7 @@ async def gitdigest_endpoint(request: GitdigestRequest):
     - **max_size**: Skip files larger than this size in bytes
     - **word_count**: Target word count for the summary (default: 500)
     - **call_llm_api**: Whether to call the LLM summarization API (default: True)
+    - **exclude_patterns**: Optional list of glob patterns to exclude from the digest (e.g., `["*.pdf", "*.jpg", "*.csv"]`). When omitted, sensible defaults are used that exclude binary files, images, data files, ML model weights, lockfiles, etc.
     """
     try:
         # Filter out Swagger UI placeholder values
