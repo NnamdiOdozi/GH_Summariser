@@ -11,7 +11,7 @@ import tomllib
 from urllib.parse import urlparse
 
 import dotenv
-import requests
+from openai import OpenAI
 from app.triage import triage_digest
 
 logger = logging.getLogger(__name__)
@@ -260,38 +260,33 @@ def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WOR
 
     logger.debug("LLM provider=%s model=%s base_url=%s", provider, model, base_url)
 
-    url = f"{base_url.rstrip('/')}/chat/completions"
+    client = OpenAI(api_key=api_token, base_url=base_url, timeout=CONFIG["llm"].get("timeout", 300))
 
-    headers = {
-        "Authorization": f"Bearer {api_token}",
-        "Content-Type": "application/json",
-    }
-
-    payload = {
+    kwargs = {
         "model": model,
         "messages": [
-            {
-                "role": "user",
-                "content": f"{prompt}\n\n---\n\nRepository Contents:\n{digest_content}"
-            }
+            {"role": "user", "content": f"{prompt}\n\n---\n\nRepository Contents:\n{digest_content}"}
         ],
         "max_tokens": max_tokens,
         "frequency_penalty": DEFAULT_FREQUENCY_PENALTY,
     }
 
-    response = requests.post(url, headers=headers, json=payload, timeout=CONFIG["llm"].get("timeout", 300))
-    if response.status_code in (400, 413):
-        body = response.json().get("error", {}).get("message", "")
-        if "context length" in body or "maximum context" in body or response.status_code == 413:
-            raise RuntimeError(
-                f"Digest exceeds the model's context window. "
-                f"Try adding exclude_patterns to reduce the digest size, or set triage=true. "
-                f"Detail: {body}"
-            )
-    response.raise_for_status()
+    response_format = provider_config.get("response_format")
+    if response_format:
+        kwargs["response_format"] = {"type": response_format}
 
-    result = response.json()
-    return result["choices"][0]["message"]["content"]
+    reasoning_effort = provider_config.get("reasoning_effort")
+    if reasoning_effort:
+        kwargs["reasoning_effort"] = reasoning_effort
+
+    response = client.chat.completions.create(**kwargs)
+
+    content = response.choices[0].message.content
+    if content is None:
+        logger.debug("LLM returned null content. Full response: %s", response.model_dump_json())
+        raise RuntimeError("LLM returned null content — reasoning model may have exhausted output tokens")
+
+    return content
 
 
 def main():

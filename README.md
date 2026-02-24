@@ -329,12 +329,13 @@ The file count, folder count, and digest content are parsed from the raw text ou
 
 If gitingest changes its output format in a future version, update the tree parser in `app/main.py` (search for `tree_separator`). The core digest and LLM summarization would still work — only `file_count` and `folder_count` would be affected.
 
-**Current provider context windows:**
-- Doubleword (Qwen3 30B): ~262K tokens; triage threshold set to 100K (conservative)
-- OpenAI gpt-4.1-mini: 1M tokens
-- Nebius "moonshotai/Kimi-K2.5": ~256 k tokens
+**On model selection (tested 2026-02-24):** We initially expected context window size to be the dominant factor — every file dropped by triage is information the model never sees. In practice, output quality and instruction-following matter just as much. Testing all three Nebius reasoning models (Kimi-K2.5, GLM-4.7-FP8, MiniMax-M2.1) plus Doubleword and OpenAI against the same repo revealed a clear ranking:
 
-**On model selection:** For this tool, context length ranks above coding specialization. Every file dropped by triage is information the model never sees, which directly hurts summary quality regardless of how capable the model is at coding. A general-purpose model with a large context window will outperform a coding-specialist model that has 40% of the repo's files dropped before it ever reads a line. Coding specialization becomes the tiebreaker once context is sufficient.
+1. **Doubleword Qwen3-30B** — fastest at 6s, clean consistent output, highest tech count, no reasoning leakage. Best all-round choice.
+2. **OpenAI gpt-4.1-mini** — clean JSON and accurate output. Rate-limited on tier-1 accounts (~200K TPM) and more expensive for large repos, but reliable.
+3. **Nebius MiniMax-M2.1** — valid JSON and good output at lower word counts, but degrades at higher word counts as the reasoning model leaks Chinese chain-of-thought into the response.
+
+Among the other Nebius reasoning models tested: Kimi-K2.5 produced valid JSON but the summary field ran to 3800+ words ignoring the word count instruction; GLM-4.7-FP8 failed to respect `response_format=json_object` entirely. Both remain available via the `NEBIUS_MODEL` env var override.
 
 ### Options for Very Large Codebases
 

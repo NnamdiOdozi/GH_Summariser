@@ -53,7 +53,7 @@ default_exclude_patterns = [
 
 [triage]
 enabled = true
-token_threshold = 240000   # Kimi-K2.5: 256k total - 339 prompt - 8000 output = 247k; -3% for tokenizer variance
+token_threshold = 178000   # MiniMax-M2.1: 196k total - 339 prompt - 8000 output = 187k; -5% for tokenizer variance
 
 [triage.layers]
 docs            = true   # READMEs, CONTRIBUTING, CHANGELOG, ADRs, docs/ folders
@@ -93,13 +93,15 @@ context_window = 1000000
 
 [llm.nebius]
 base_url = "https://api.tokenfactory.nebius.com/v1/"
-model = "moonshotai/Kimi-K2.5"  # fallback; overridden by NEBIUS_MODEL env var if set
+model = "MiniMaxAI/MiniMax-M2.1"  # fallback; overridden by NEBIUS_MODEL env var if set
 model_env = "NEBIUS_MODEL"
 auth_env = "NEBIUS_API_KEY"
-context_window = 256000           # update together with model when switching
-max_output_tokens = 8000         # Kimi-K2.5 is a reasoning model; safe cap for standard models too
+context_window = 196000           # update together with model when switching
+max_output_tokens = 8000         # reasoning model; safe cap for standard models too
+response_format = "json_object"  # enforces valid JSON output via OpenAI SDK
+reasoning_effort = "low"         # reduces reasoning tokens; values: none, minimal, low, medium, high
 
 # Nebius model options — set model + context_window together, update token_threshold in [triage] to match:
-# model = "moonshotai/Kimi-K2.5"    context_window = 256000  (reasoning model: keep max_output_tokens >= 8000)
-# model = "zai-org/GLM-4.7-FP8"     context_window = 200000
-# model = "MiniMaxAI/MiniMax-M2.1"  context_window = 196000
+# model = "MiniMaxAI/MiniMax-M2.1"  context_window = 196000  token_threshold = 178000  (reasoning model)
+# model = "moonshotai/Kimi-K2.5"    context_window = 256000  token_threshold = 240000  (reasoning model)
+# model = "zai-org/GLM-4.7-FP8"     context_window = 200000  token_threshold = 182000  (reasoning model)
