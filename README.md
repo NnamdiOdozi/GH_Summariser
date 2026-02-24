@@ -329,13 +329,15 @@ The file count, folder count, and digest content are parsed from the raw text ou
 
 If gitingest changes its output format in a future version, update the tree parser in `app/main.py` (search for `tree_separator`). The core digest and LLM summarization would still work — only `file_count` and `folder_count` would be affected.
 
-**On model selection (tested 2026-02-24):** We initially expected context window size to be the dominant factor — every file dropped by triage is information the model never sees. In practice, output quality and instruction-following matter just as much. Testing all three Nebius reasoning models (Kimi-K2.5, GLM-4.7-FP8, MiniMax-M2.1) plus Doubleword and OpenAI against the same repo revealed a clear ranking:
+**On model selection (tested 2026-02-24, 100K token flat comparison):** Context window size turned out not to be the dominant factor — instruction-following, output consistency, and latency stability matter more. All five models were tested on identical input (same repo, same 100K token budget) using `response_format=json_schema`. Ranked by reliability and output quality:
 
-1. **Doubleword Qwen3-30B** — fastest at 6s, clean consistent output, highest tech count, no reasoning leakage. Best all-round choice.
-2. **OpenAI gpt-4.1-mini** — clean JSON and accurate output. Rate-limited on tier-1 accounts (~200K TPM) and more expensive for large repos, but reliable.
-3. **Nebius MiniMax-M2.1** — valid JSON and good output at lower word counts, but degrades at higher word counts as the reasoning model leaks Chinese chain-of-thought into the response.
+1. **Doubleword Qwen3-30B** — 20s, 17 techs, 884 words, zero non-Latin bleed. Fastest and cleanest across all repo sizes. Best all-round choice.
+2. **OpenAI gpt-4.1-mini** — 24s, 13 techs, 850 words, clean output. Reliable, but tier-1 accounts hit a ~400K TPM rate limit that caps effective usable context to ~100K tokens for large repos.
+3. **Nebius MiniMax-M2.1** — 38s, 22 techs, 816 words. Good quality at scale with `max_output_tokens=8000`; occasional non-Latin reasoning bleed under pressure.
+4. **Nebius GLM-4.7-FP8** — Valid JSON on small repos but thin output at 100K (124 words, 4 techs) and null content above 153K tokens. Degrades sharply with context size.
+5. **Nebius Kimi-K2.5** — Valid JSON but wildly variable latency (36s–209s on identical input). Unreliable for production use.
 
-Among the other Nebius reasoning models tested: Kimi-K2.5 produced valid JSON but the summary field ran to 3800+ words ignoring the word count instruction; GLM-4.7-FP8 failed to respect `response_format=json_object` entirely. Both remain available via the `NEBIUS_MODEL` env var override.
+**On `response_format`:** `json_schema` is significantly better than `json_object` for all Nebius reasoning models. With `json_object`, MiniMax leaked Chinese chain-of-thought into the summary field at higher word counts; `json_schema` largely eliminates this by giving the model an explicit field scaffold. GLM, which produced invalid JSON with `json_object`, produces valid (if thin) JSON with `json_schema` on smaller inputs. All three Nebius models are reasoning models that share their output token budget between chain-of-thought and response — `max_output_tokens = 8000` is required in config to avoid null responses.
 
 ### Options for Very Large Codebases
 

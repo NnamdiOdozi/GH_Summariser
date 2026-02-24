@@ -272,7 +272,25 @@ def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WOR
     }
 
     response_format = provider_config.get("response_format")
-    if response_format:
+    if response_format == "json_schema":
+        kwargs["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "repo_summary",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "summary":      {"type": "string"},
+                        "technologies": {"type": "array", "items": {"type": "string"}},
+                        "structure":    {"type": "string"},
+                    },
+                    "required": ["summary", "technologies", "structure"],
+                    "additionalProperties": False,
+                },
+            },
+        }
+    elif response_format:
         kwargs["response_format"] = {"type": response_format}
 
     reasoning_effort = provider_config.get("reasoning_effort")
