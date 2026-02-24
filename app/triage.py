@@ -139,6 +139,7 @@ def triage_digest(digest: str, triage_config: dict) -> dict:
             "triage_applied": False,
             "pre_triage_tokens": pre_tokens,
             "post_triage_tokens": pre_tokens,
+            "files_dropped": [],
         }
 
     logger.info("Triage triggered: %d tokens > %d threshold", pre_tokens, threshold)
