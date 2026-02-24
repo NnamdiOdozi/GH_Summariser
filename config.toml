@@ -53,7 +53,14 @@ default_exclude_patterns = [
 
 [triage]
 enabled = true
-token_threshold = 178000   # MiniMax-M2.1: 196k total - 339 prompt - 8000 output = 187k; -5% for tokenizer variance
+# token_threshold is the ONLY value that controls how much content is sent to the LLM.
+# context_window values in each [llm.provider] section are purely informational (not read by code).
+# Set token_threshold conservatively so no model is under context pressure when generating.
+# Per-model safe values (if you want to use more of a large context window):
+#   MiniMax-M2.1 (Nebius):  178000   GLM-4.7-FP8 (Nebius): 165000
+#   Kimi-K2.5 (Nebius):     240000   gpt-4.1-mini (OpenAI): 100000 (tier-1 TPM rate limit)
+#   Qwen3-30B (Doubleword): 240000
+token_threshold = 100000
 
 [triage.layers]
 docs            = true   # READMEs, CONTRIBUTING, CHANGELOG, ADRs, docs/ folders
@@ -77,31 +84,44 @@ provider = "nebius"  # "doubleword", "openai", or "nebius"
 frequency_penalty = 0.3
 timeout = 300  # seconds
 
+# ── Provider sections ────────────────────────────────────────────────────────
+# All providers share: base_url, model, model_env, auth_env, context_window, response_format
+# context_window is informational only — it is never read by code. Only token_threshold (above) controls triage.
+# response_format = "json_schema" is supported by all three providers and improves output reliability.
+#
+# Nebius-only keys (not present on doubleword/openai — would cause API errors if passed):
+#   max_output_tokens — Nebius reasoning models share the output token budget between chain-of-thought
+#                       and the actual response. Without a high cap (>=8000), the response can be null.
+#                       Doubleword and OpenAI are not reasoning models so the default word_count×2 suffices.
+#   reasoning_effort  — Nebius-specific parameter to reduce reasoning tokens. Not supported by other providers.
+
 [llm.doubleword]
 base_url = "https://api.doubleword.ai/v1"
 model = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"  # fallback; overridden by DOUBLEWORD_MODEL env var if set
 model_env = "DOUBLEWORD_MODEL"
 auth_env = "DOUBLEWORD_AUTH_TOKEN"
-context_window = 262000
+context_window = 262000          # informational only — not read by code
+response_format = "json_schema"  # enforces structured JSON output via OpenAI SDK
 
 [llm.openai]
 base_url = "https://api.openai.com/v1"
 model = "gpt-4.1-mini"  # fallback; overridden by OPENAI_MODEL env var if set
 model_env = "OPENAI_MODEL"
 auth_env = "OPENAI_API_KEY"
-context_window = 1000000
+context_window = 1000000         # informational only — not read by code; effective limit ~100K due to tier-1 TPM rate limit
+response_format = "json_schema"  # enforces structured JSON output via OpenAI SDK
 
 [llm.nebius]
 base_url = "https://api.tokenfactory.nebius.com/v1/"
 model = "MiniMaxAI/MiniMax-M2.1"  # fallback; overridden by NEBIUS_MODEL env var if set
 model_env = "NEBIUS_MODEL"
 auth_env = "NEBIUS_API_KEY"
-context_window = 196000           # update together with model when switching
-max_output_tokens = 8000         # reasoning model; safe cap for standard models too
+context_window = 196000          # informational only — not read by code; update alongside model when switching
+max_output_tokens = 8000         # reasoning model only: reserves output tokens for the response, not chain-of-thought
 response_format = "json_schema"  # enforces structured JSON output via OpenAI SDK
-reasoning_effort = "low"         # reduces reasoning tokens; values: none, minimal, low, medium, high
+reasoning_effort = "low"         # reasoning model only: reduces chain-of-thought tokens; values: none, minimal, low, medium, high
 
-# Nebius model options — set model + context_window together, update token_threshold in [triage] to match:
-# model = "MiniMaxAI/MiniMax-M2.1"  context_window = 196000  token_threshold = 178000  (reasoning model)
-# model = "moonshotai/Kimi-K2.5"    context_window = 256000  token_threshold = 240000  (reasoning model)
-# model = "zai-org/GLM-4.7-FP8"     context_window = 200000  token_threshold = 182000  (reasoning model)
+# Nebius model options — update model + context_window together (context_window is for reference only):
+# model = "MiniMaxAI/MiniMax-M2.1"  context_window = 196000  (reasoning model)
+# model = "moonshotai/Kimi-K2.5"    context_window = 256000  (reasoning model; variable latency)
+# model = "zai-org/GLM-4.7-FP8"     context_window = 200000  (reasoning model; degrades above ~100K input tokens)

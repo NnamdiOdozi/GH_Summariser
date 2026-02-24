@@ -6,6 +6,7 @@
 - Use `config.toml` for all tuneable parameters: word counts, file size limits, timeouts, exclusion patterns, provider settings, LLM and other API configuration (model names, base URLs, auth env var names, frequency penalties, timeouts). Users should never need to edit Python code to change operational defaults.
 - API keys and secrets stay in `.env` / `.env.claude` (gitignored). Configuration that is not secret goes in `config.toml` (committed to repo).
 - No hardcoding of values that may differ between local development and server deployment. If a value could change per environment, it belongs in config.
+- **Config file consistency and comments:** When a config file has multiple parallel sections (e.g. `[llm.doubleword]`, `[llm.openai]`, `[llm.nebius]`), keep the structure as consistent as possible across sections. If a parameter appears in one section but not others, add an inline comment on that parameter explaining why it is specific to that section (e.g. "reasoning model only — would cause API errors on other providers"). If a parameter is present in all sections but has different semantics or constraints in one of them, note that too. If a key exists purely for documentation and is not read by code, mark it explicitly as `# informational only — not read by code`. The goal: a fresh session reading the config file should understand the full picture without needing to read the source code.
 
 ### Server Deployment
 - Every deployable project should include a `systemd` service file and a `setup.sh` bash script for reproducible server setup.
