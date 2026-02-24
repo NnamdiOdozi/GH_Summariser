@@ -2,6 +2,7 @@
 import logging
 import os
 import tomllib
+from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,12 +21,19 @@ _log_level = _log_cfg.get("level", "INFO")
 
 os.makedirs(_log_dir, exist_ok=True)
 
+_max_bytes = _log_cfg.get("max_log_bytes", 150_000)   # ~1000 lines at ~150 chars/line
+_backup_count = _log_cfg.get("backup_count", 5)        # keep api.log + 5 rotated files
+
 logging.basicConfig(
     level=getattr(logging, _log_level, logging.INFO),
     format="%(asctime)s %(levelname)-5s %(name)s  %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[
-        logging.FileHandler(os.path.join(_log_dir, _log_file)),
+        RotatingFileHandler(
+            os.path.join(_log_dir, _log_file),
+            maxBytes=_max_bytes,
+            backupCount=_backup_count,
+        ),
         logging.StreamHandler(),
     ],
 )
@@ -51,4 +59,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api.main:app", host="127.0.0.1", port=8001, reload=True)  # Using port 8001 to avoid conflict with any existing service on 8000
+    uvicorn.run("api.main:app", host="127.0.0.1", port=8001, workers=2)

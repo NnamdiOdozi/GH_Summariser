@@ -5,7 +5,7 @@ import time
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from app.main import run_gitdigest, DEFAULT_WORD_COUNT, DEFAULT_MAX_SIZE, OUTPUT_DIR
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 class GitdigestRequest(BaseModel):
-    url: str = Field("https://github.com/NnamdiOdozi/mlx-digit-app", description="GitHub repository URL. Can include branch info (e.g., /tree/dev). If no branch is in the URL or the branch field, defaults to the repo's default branch.")
+    github_url: str = Field("https://github.com/NnamdiOdozi/mlx-digit-app", description="GitHub repository URL. Can include branch info (e.g., /tree/dev). If no branch is in the URL or the branch field, defaults to the repo's default branch.")
     token: Optional[str] = Field(None, description="GitHub Personal Access Token (required only for private repos)", examples=[""])
     branch: Optional[str] = Field(None, description="Branch override (case-sensitive). If set, takes priority over any branch in the URL. Leave empty to auto-detect from URL or use repo default.", examples=[""])
     max_size: int = Field(DEFAULT_MAX_SIZE, description=f"Maximum file size in bytes to process (default: {DEFAULT_MAX_SIZE // 1048576}MB)")
@@ -22,6 +22,7 @@ class GitdigestRequest(BaseModel):
     call_llm_api: bool = Field(True, description="Whether to call LLM summarization API (default: True)")
     exclude_patterns: Optional[list[str]] = Field(None, description="Glob patterns to exclude files or directories (e.g., ['*.pdf', '*.csv', 'docs/*', 'tests/*']). Defaults to common binary/data extensions.")
     focus: Optional[str] = Field(None, description="Optional short instruction appended to the default summary prompt to steer the analysis (e.g., 'Focus on the authentication module'). See example prompts below.", examples=[""])
+    triage: bool = Field(True, description="When True (default), automatically trims the digest to fit within the LLM context window by dropping lowest-signal files first. Disable to send the full digest as-is.")
 
 
 @router.post("/gitdigest", summary="Ingest GitHub repository for LLM summarization")
@@ -62,13 +63,13 @@ async def gitdigest_endpoint(request: GitdigestRequest):
 
     logger.info(
         "POST /gitdigest url=%s branch=%s llm=%s word_count=%d focus=%s",
-        request.url, branch, request.call_llm_api, request.word_count, focus,
+        request.github_url, branch, request.call_llm_api, request.word_count, focus,
     )
     t0 = time.time()
 
     try:
         result = run_gitdigest(
-            url=request.url,
+            url=request.github_url,
             token=token,
             branch=branch,
             max_size=request.max_size if request.max_size else DEFAULT_MAX_SIZE,
@@ -76,29 +77,53 @@ async def gitdigest_endpoint(request: GitdigestRequest):
             call_llm_api=request.call_llm_api,
             exclude_patterns=exclude_patterns,
             focus=focus,
+            triage=request.triage,
         )
 
-        response_data = {
-            "status": "success",
-            "output_file": result["output_file"],
-            "branch": result.get("branch"),
-            "digest_stats": result["digest_stats"],
-            "directory_tree": result.get("directory_tree", ""),
-        }
+        # Summary fields at top, metadata below
+        response_data = {"status": "success"}
 
         if request.call_llm_api:
             response_data["summary"] = result.get("summary", "")
+            response_data["technologies"] = result.get("technologies", [])
+            response_data["structure"] = result.get("structure", "")
         else:
             with open(result["output_file"], "r") as f:
                 response_data["content"] = f.read()
 
+        response_data["branch"] = result.get("branch")
+        response_data["output_file"] = result["output_file"]
+        response_data["digest_stats"] = result["digest_stats"]
+
+        if result.get("triage_applied"):
+            response_data["triage"] = {
+                "applied": True,
+                "pre_triage_tokens": result["pre_triage_tokens"],
+                "post_triage_tokens": result["post_triage_tokens"],
+                "files_dropped_count": result["files_dropped_count"],
+            }
+
         elapsed = time.time() - t0
         logger.info("POST /gitdigest completed in %.1fs (status=success)", elapsed)
         return response_data
+
+    except ValueError as e:
+        elapsed = time.time() - t0
+        logger.error("POST /gitdigest bad request after %.1fs: %s", elapsed, e)
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+    except RuntimeError as e:
+        elapsed = time.time() - t0
+        msg = str(e)
+        logger.error("POST /gitdigest failed after %.1fs: %s", elapsed, msg, exc_info=True)
+        if "not accessible" in msg or "private repo" in msg.lower():
+            return JSONResponse(status_code=401, content={"status": "error", "message": msg})
+        if "context window" in msg.lower() or "context length" in msg.lower():
+            return JSONResponse(status_code=422, content={"status": "error", "message": msg})
+        return JSONResponse(status_code=500, content={"status": "error", "message": msg})
     except Exception as e:
         elapsed = time.time() - t0
         logger.error("POST /gitdigest failed after %.1fs: %s", elapsed, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
 @router.get("/gitdigest/{filename}", summary="Download digest file")

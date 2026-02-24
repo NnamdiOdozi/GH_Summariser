@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 import dotenv
 import requests
+from app.triage import triage_digest
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,22 @@ DEFAULT_MAX_SIZE = CONFIG["digest"]["default_max_size"]
 DEFAULT_FREQUENCY_PENALTY = CONFIG["llm"].get("frequency_penalty", 0.3)
 OUTPUT_DIR = CONFIG["digest"]["output_dir"]
 DEFAULT_EXCLUDE_PATTERNS = CONFIG["digest"]["default_exclude_patterns"]
+MAX_SUMMARIES = CONFIG["digest"].get("max_summaries", 20)
+
+
+def cleanup_summaries():
+    """Keep only the most recent MAX_SUMMARIES digest pairs in OUTPUT_DIR."""
+    txt_files = sorted(
+        [f for f in os.listdir(OUTPUT_DIR) if f.endswith(".txt") and not f.startswith(".")],
+        key=lambda f: os.path.getmtime(os.path.join(OUTPUT_DIR, f)),
+    )
+    excess = txt_files[: max(0, len(txt_files) - MAX_SUMMARIES)]
+    for name in excess:
+        for ext in (".txt", "_llm.json"):
+            path = os.path.join(OUTPUT_DIR, name.replace(".txt", ext))
+            if os.path.exists(path):
+                os.remove(path)
+                logger.info("Cleanup: removed %s", path)
 
 
 def parse_github_url(url: str) -> dict:
@@ -73,13 +90,15 @@ def run_gitdigest(
     word_count: int = DEFAULT_WORD_COUNT,
     call_llm_api: bool = True,
     focus: str = None,
+    triage: bool = True,
 ) -> dict:
     """Run gitingest on a GitHub URL and optionally call LLM API for summarization."""
 
     parsed = parse_github_url(url)
 
-    # Ensure output directory exists
+    # Ensure output directory exists and trim old summaries
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    cleanup_summaries()
 
     output_file = os.path.join(OUTPUT_DIR, f"{parsed['owner']}-{parsed['repo']}.txt")
 
@@ -105,7 +124,7 @@ def run_gitdigest(
     if max_size:
         cmd.extend(["-s", str(max_size)])
 
-    patterns = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDE_PATTERNS
+    patterns = DEFAULT_EXCLUDE_PATTERNS + (exclude_patterns or [])
     for pat in patterns:
         cmd.extend(["-e", pat])
 
@@ -117,8 +136,14 @@ def run_gitdigest(
     logger.info("gitingest finished in %.1fs (rc=%d)", elapsed, result.returncode)
 
     if result.returncode != 0:
-        logger.error("gitingest failed: %s", result.stderr.strip())
-        raise RuntimeError(f"gitingest failed: {result.stderr.strip()}")
+        stderr = result.stderr.strip()
+        logger.error("gitingest failed: %s", stderr)
+        if any(x in stderr.lower() for x in ("401", "403", "not found", "authentication", "private")):
+            raise RuntimeError(
+                f"Repository not accessible: {parsed['owner']}/{parsed['repo']}. "
+                "If this is a private repo, provide a GitHub token via the 'token' field."
+            )
+        raise RuntimeError(f"gitingest failed: {stderr}")
 
     # Read the digest file and compute stats
     with open(output_file, "r") as f:
@@ -126,7 +151,7 @@ def run_gitdigest(
 
     lines = digest_content.count("\n")
     words = len(digest_content.split())
-    estimated_tokens = int(words * 1.3)
+    estimated_tokens = int(len(digest_content) / 3.5)
 
     # Extract directory tree (everything before first ===== separator)
     tree_separator = "=" * 48
@@ -157,7 +182,7 @@ def run_gitdigest(
             "file_count": file_count,
             "folder_count": folder_count,
         },
-        "directory_tree": directory_tree,
+        # directory_tree omitted from JSON — too verbose for large repos
     }
 
     # Optionally call Doubleword API for summarization
@@ -173,14 +198,36 @@ def run_gitdigest(
         if focus:
             prompt += f"\n\nAdditional user instruction: {focus}"
 
+        # Triage: trim digest to token budget before sending to LLM
+        triage_config = CONFIG.get("triage", {})
+        if triage and triage_config.get("enabled", True):
+            triage_result = triage_digest(digest_content, triage_config)
+            digest_content = triage_result["text"]
+            if triage_result["triage_applied"]:
+                result_dict["triage_applied"] = True
+                result_dict["pre_triage_tokens"] = triage_result["pre_triage_tokens"]
+                result_dict["post_triage_tokens"] = triage_result["post_triage_tokens"]
+                result_dict["files_dropped_count"] = len(triage_result["files_dropped"])
+
         # Call LLM API (2x multiplier gives headroom for markdown formatting overhead)
         max_tokens = int(word_count * 2.0)
         logger.info("Calling LLM (provider=%s, max_tokens=%d)", CONFIG["llm"]["provider"], max_tokens)
         t0 = time.time()
-        summary = call_llm(prompt, digest_content, max_tokens=max_tokens)
+        raw = call_llm(prompt, digest_content, max_tokens=max_tokens)
         elapsed = time.time() - t0
-        logger.info("LLM response received in %.1fs (%d words)", elapsed, len(summary.split()))
-        result_dict["summary"] = summary
+        logger.info("LLM response received in %.1fs (%d words)", elapsed, len(raw.split()))
+
+        # Parse structured JSON response from LLM
+        try:
+            # Strip markdown fences if the model wrapped the JSON anyway
+            cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            parsed = json.loads(cleaned)
+            result_dict["summary"] = parsed.get("summary", raw)
+            result_dict["technologies"] = parsed.get("technologies", [])
+            result_dict["structure"] = parsed.get("structure", "")
+        except (json.JSONDecodeError, AttributeError):
+            logger.warning("LLM did not return valid JSON; storing raw response as summary")
+            result_dict["summary"] = raw
 
     # Save result to JSON file for debugging/inspection
     output_json = output_file.replace(".txt", "_llm.json")
@@ -227,6 +274,14 @@ def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WOR
     }
 
     response = requests.post(url, headers=headers, json=payload, timeout=CONFIG["llm"].get("timeout", 300))
+    if response.status_code in (400, 413):
+        body = response.json().get("error", {}).get("message", "")
+        if "context length" in body or "maximum context" in body or response.status_code == 413:
+            raise RuntimeError(
+                f"Digest exceeds the model's context window. "
+                f"Try adding exclude_patterns to reduce the digest size, or set triage=true. "
+                f"Detail: {body}"
+            )
     response.raise_for_status()
 
     result = response.json()

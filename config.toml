@@ -1,39 +1,75 @@
 [digest]
 output_dir = "git_summaries"
+max_summaries = 20           # keep only the N most recent digest pairs; older ones are deleted
 default_word_count = 750
 default_max_size = 10485760  # 10MB
 default_exclude_patterns = [
     # Binary/media files
-    "*.pdf", "*.csv", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.svg", "*.ico",
-    "*.webp", "*.avif", "*.jfif", "*.tiff", "*.tif", "*.heic", "*.psd",
-    "*.mp3", "*.mp4", "*.wav",
+    "**/*.pdf", "**/*.csv", "**/*.jpg", "**/*.jpeg", "**/*.png", "**/*.gif", "**/*.bmp", "**/*.svg", "**/*.ico",
+    "**/*.webp", "**/*.avif", "**/*.jfif", "**/*.tiff", "**/*.tif", "**/*.heic", "**/*.psd",
+    "**/*.mp3", "**/*.mp4", "**/*.wav",
     # Archives
-    "*.zip", "*.tar", "*.gz", "*.rar", "*.7z",
+    "**/*.zip", "**/*.tar", "**/*.gz", "**/*.rar", "**/*.7z",
     # Executables/libs
-    "*.exe", "*.dll", "*.so", "*.bin",
+    "**/*.exe", "**/*.dll", "**/*.so", "**/*.bin",
     # Data files
-    "*.dat", "*.db", "*.sqlite", "*.xls", "*.xlsx", "*.parquet",
+    "**/*.dat", "**/*.db", "**/*.sqlite", "**/*.xls", "**/*.xlsx", "**/*.parquet",
     # Documents (binary formats)
-    "*.docx", "*.doc", "*.pptx", "*.ppt", "*.odt", "*.odp",
+    "**/*.docx", "**/*.doc", "**/*.pptx", "**/*.ppt", "**/*.odt", "**/*.odp",
     # ML model weights
-    "*.pickle", "*.pkl", "*.h5", "*.hdf5", "*.npy", "*.npz",
-    "*.pth", "*.pt", "*.onnx", "*.tflite", "*.weights",
-    # Lockfiles
-    "*.lock",
+    "**/*.pickle", "**/*.pkl", "**/*.h5", "**/*.hdf5", "**/*.npy", "**/*.npz",
+    "**/*.pth", "**/*.pt", "**/*.onnx", "**/*.tflite", "**/*.weights",
+    # Lockfiles and package manager noise
+    "**/*.lock", "**/*lock.yaml", "**/package-lock.json",
+    # Minified, compiled and generated files
+    "**/*.min.js", "**/*.min.css", "**/*.map",
+    "**/*.snap", "**/*.generated.*", "**/*.g.ts",
+    # Styles (non-source)
+    "**/*.css",
+    # Build and cache output
+    "**/dist/**", "**/build/**", "**/.next/**", "**/.turbo/**", "**/.parcel-cache/**", "**/.cache/**",
+    # Python cache
+    "**/__pycache__/**", "**/*.pyc",
+    # i18n / translation files
+    "**/locales/**", "**/translations/**",
     # Data/output directories
-    "data/*",
+    "**/data*/**",
     # Package manager and virtual environment directories
-    "node_modules/*",
-    ".venv/*",
-    "venv/*",
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**",
+    # Logs and runtime output
+    "**/*.log", "**/logs/**",
+    # AI agent config/context dirs
+    "**/.claude/**", "**/.gemini/**", "**/.codex/**",
+    # Git internals
+    "**/.git/**",
+    # Dev container config
+    "**/.devcontainer/**",
     # Misc binary artifacts
-    "*.stackdump",
+    "**/*.stackdump",
 ]
+
+[triage]
+enabled = true
+token_threshold = 100000   # conservative default; fits within the smallest providers (100K context window)
+
+[triage.layers]
+docs            = true   # READMEs, CONTRIBUTING, CHANGELOG, ADRs, docs/ folders
+skills          = true   # files/folders with "skill" in name (agent instructions)
+build_deps      = true   # pyproject.toml, package.json, Dockerfile, requirements.txt etc.
+entrypoints     = true   # main.py, app.py, server.ts, index.ts etc.
+config_surfaces = true   # anything with "config" or "settings" in name, .env.example
+domain_model    = true   # models/, schemas/, routes/, services/, controllers/ etc.
+ci              = true   # .github/workflows/, deploy/ etc.
+tests           = false  # test files — off by default (verbose, lower signal per token)
 
 [logging]
 level = "INFO"  # DEBUG, INFO, WARNING, ERROR
 log_dir = "logs"
 log_file = "api.log"
+max_log_bytes = 150000       # rotate at ~150KB (~1000 lines at ~150 chars/line)
+backup_count = 5             # keep api.log + 5 rotated files (api.log.1 … api.log.5)
 
 [llm]
 provider = "doubleword"  # "doubleword" or "openai"

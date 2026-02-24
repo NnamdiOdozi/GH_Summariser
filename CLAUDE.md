@@ -21,9 +21,11 @@
 ### Logging
 - Use Python's `logging` module with timestamps and log levels — not bare `print()` statements. Format should include timestamp, level, and message at minimum (e.g., `2025-06-15 14:32:01 INFO  Processing repo owner/repo`).
 - Log to a file in a dedicated `logs/` directory at the project root (e.g., `logs/api.log`). This directory should be gitignored.
+- Use `RotatingFileHandler` to prevent unbounded log growth. Configure `maxBytes` and `backupCount` in `config.toml` so they can be tuned without code changes. A good default is `maxBytes=150_000` (~1000 lines at ~150 chars/line) with `backupCount=5` (keeping `api.log` + 5 rotated files).
 - Log enough context to trace what happened: request parameters, which external calls were made, timing of slow operations (LLM calls, subprocess runs), and full tracebacks on errors.
 - Replace ad-hoc `print(..., file=sys.stderr)` debug statements with proper logger calls before shipping. Debug prints are fine during development but should not persist in committed code.
 - Generated output files (digests, summaries) should also go in dedicated directories (e.g., `git_summaries/`) to keep the project root clean. These directories should be gitignored.
+- Cap the number of generated output files. Use a `max_summaries` config parameter and a `cleanup_summaries()` function that deletes the oldest pairs (e.g., `.txt` + `_llm.json`) when the count exceeds the cap. 20 is a sensible default. Run cleanup at the start of each job before writing new output.
 
 ### Testing
 - Keep test outputs in a dedicated `tests/` directory at the project root, gitignored.
