@@ -209,3 +209,8 @@ logs/
 
 # Test outputs
 tests/
+
+# Scrap files
+tmp*
+temp*
+chatgpt*

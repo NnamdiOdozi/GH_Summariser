@@ -91,6 +91,6 @@ auth_env = "OPENAI_API_KEY"
 
 [llm.nebius]
 base_url = "https://api.tokenfactory.nebius.com/v1/"
-model = "MiniMaxAI/MiniMax-M2.1" # fallback; overridden by OPENAI_MODEL env var if set
+model = "moonshotai/Kimi-K2.5" # fallback; overridden by OPENAI_MODEL env var if set
 model_env = "NEBIUS_MODEL"
 auth_env = "NEBIUS_API_KEY"

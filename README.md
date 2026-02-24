@@ -48,7 +48,6 @@ cp .env.claude.example .env.claude   # if an example exists, otherwise create ma
 Add your API keys to `.env.claude`:
 
 ```env
-
 DOUBLEWORD_AUTH_TOKEN=your_doubleword_token
 OPENAI_API_KEY=your_openai_key         # only if using openai provider
 NEBIUS_API_KEY=your_nebius_key         # only if using nebius provider
@@ -267,7 +266,9 @@ Even after layers 1 and 2, some repos produce digests too large for the LLM cont
 | tests | Test files — off by default (verbose, lower signal per token) |
 | other | Everything else |
 
-Each tier can be toggled on/off in `[triage.layers]` in `config.toml`. The `token_threshold` is set conservatively at 100K to work across the smallest provider context windows.
+Each tier can be toggled on/off in `[triage.layers]` in `config.toml`. The `token_threshold` is set conservatively at 100K to work across the smallest provider context windows. To use more of a larger model's context window, raise `token_threshold` to match — for example, 256000 for Nebius Kimi-K2.5 or 1000000 for OpenAI gpt-4.1-mini.
+
+**Token estimation:** Token count is estimated locally using `chars ÷ 3.5`. This is a good approximation for mixed code/prose and, crucially, requires no network call to a remote tokenizer — keeping triage fast and self-contained. Adjust `token_threshold` in `config.toml` to tune how aggressively the digest is trimmed.
 
 The response always includes a `triage` block so you can see what happened:
 
@@ -298,6 +299,24 @@ By default, the LLM receives a general-purpose summarization prompt (see [`app/p
 - "Focus on the authentication and security implementation"
 - "Focus on the test coverage and CI/CD setup"
 
+## Tested Scenarios
+
+### Private repositories
+
+Tested with private GitHub repositories using a PAT. Pass a token with `repo` scope via the `token` field (API) or `-t` flag (CLI). Without a valid token the API returns a 401 with a clear error message.
+
+### Large codebases — Babel
+
+[babel/babel](https://github.com/babel/babel) is a large JavaScript monorepo. Pre-triage it produces digests in the range of 250K–400K tokens (depending on default exclusions). Observations:
+
+- Triage dropped the majority of files to fit within the 100K default threshold, retaining entrypoints, config surfaces, and domain model files
+- Setting `token_threshold = 256000` (Nebius) or `token_threshold = 1000000` (OpenAI gpt-4.1-mini) allows significantly more of the codebase to be passed through
+- Adding `exclude_patterns` such as `["packages/*/test/**", "packages/*/fixtures/**"]` can substantially reduce pre-triage token count before triage runs
+
+### Specific branches
+
+The `branch` field has been tested with non-default branches. Pass the exact branch name (case-sensitive). If the branch name appears in the GitHub URL (e.g. `/tree/dev`), it can also be auto-detected from the URL.
+
 ## Known Dependencies and Assumptions
 
 ### gitingest output format
@@ -313,7 +332,7 @@ If gitingest changes its output format in a future version, update the tree pars
 **Current provider context windows:**
 - Doubleword (Qwen3 30B): ~262K tokens; triage threshold set to 100K (conservative)
 - OpenAI gpt-4.1-mini: 1M tokens
-- Nebius MiniMax-M2.1: 
+- Nebius "moonshotai/Kimi-K2.5": ~256 k tokens
 
 **On model selection:** For this tool, context length ranks above coding specialization. Every file dropped by triage is information the model never sees, which directly hurts summary quality regardless of how capable the model is at coding. A general-purpose model with a large context window will outperform a coding-specialist model that has 40% of the repo's files dropped before it ever reads a line. Coding specialization becomes the tiebreaker once context is sufficient.
 
@@ -325,4 +344,4 @@ If gitingest changes its output format in a future version, update the tree pars
 4. **Recursive Language Models (RLMs)** — give the LLM file exploration tools (bash, grep, find); sub-agents explore specific directories and report back to a parent agent
 5. **RAG** — embed digest chunks in a vector database (Chroma, Pinecone, pgvector), query by question
 6. **Page index** — build a searchable index with section references for targeted lookup rather than full summaries
-6. **Agentic search** - Using a single or multi-agent system to serach through the codebase digest
+7. **Agentic search** — using a single or multi-agent system to search through the codebase digest
