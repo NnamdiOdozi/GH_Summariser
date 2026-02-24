@@ -52,9 +52,11 @@ def _file_tier(filepath: str, layers: dict) -> str:
                 in_path("docs") or in_path("doc") or in_path("adr")):
             return "docs"
 
-    # Tier 2: Skills — agent instruction files (high-signal, condensed)
+    # Tier 2: Skills — agent instruction files and AI agent config dirs (high-signal, condensed)
     if layers.get("skills", True):
         if "skill" in path_lower:
+            return "skills"
+        if in_path(".claude") or in_path(".gemini") or in_path(".codex"):
             return "skills"
 
     # Tier 3: Build / dependency manifests

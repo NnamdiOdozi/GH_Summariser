@@ -288,11 +288,12 @@ Before anything is sent anywhere, gitingest filters out files that have no value
 | **Data directories** | `**/data*/**` |
 | **Package/venv dirs** | `**/node_modules/**`, `**/.venv/**`, `**/venv/**` |
 | **Logs** | `**/*.log`, `**/logs/**` |
-| **AI agent config** | `**/.claude/**`, `**/.gemini/**`, `**/.codex/**` |
 | **Git internals** | `**/.git/**` |
 | **i18n/translations** | `**/locales/**`, `**/translations/**` |
 
 **Why?** Binary files, model weights, and data directories add bulk without providing code understanding. Lockfiles list pinned dependency versions with no architectural signal. Build output and caches duplicate what's already in source. Excluding these typically reduces digest size by 50–80% with no loss of useful information.
+
+Note that `.claude/`, `.gemini/`, and `.codex/` agent config directories are **intentionally not excluded** here. They frequently contain skills files and project instructions that are high-signal content. They are instead classified into the `skills` tier in Layer 3 (triage), keeping them protected until the very last resort.
 
 ### Layer 2 — User-Supplied Exclusion Patterns
 
@@ -318,7 +319,7 @@ Even after layers 1 and 2, some repos produce digests too large for the LLM cont
 | Tier | What it covers |
 |------|---------------|
 | docs | READMEs, CONTRIBUTING, CHANGELOG, docs/ folders |
-| skills | Files/folders with "skill" in the path (agent instructions) |
+| skills | Files/folders with "skill" in the path; also `.claude/`, `.gemini/`, `.codex/` agent config dirs |
 | build_deps | pyproject.toml, package.json, Dockerfile, requirements.txt |
 | entrypoints | main.py, app.py, server.ts, index.ts, etc. |
 | config_surfaces | Files with "config" or "settings" in name, .env.example |

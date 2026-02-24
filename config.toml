@@ -40,8 +40,9 @@ default_exclude_patterns = [
     "**/venv/**",
     # Logs and runtime output
     "**/*.log", "**/logs/**",
-    # AI agent config/context dirs
-    "**/.claude/**", "**/.gemini/**", "**/.codex/**",
+    # AI agent config/context dirs (excluded only the non-skills config; skills handled by triage)
+    # NOTE: .claude/, .gemini/, .codex/ intentionally NOT excluded — they contain high-signal
+    # skills/instructions and are classified into the triage 'skills' tier instead.
     # Git internals
     "**/.git/**",
     # Dev container config
