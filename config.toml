@@ -53,7 +53,7 @@ default_exclude_patterns = [
 
 [triage]
 enabled = true
-token_threshold = 256000   # Nebius Kimi-K2.5 context window
+token_threshold = 240000   # Kimi-K2.5: 256k total - 339 prompt - 8000 output = 247k; -3% for tokenizer variance
 
 [triage.layers]
 docs            = true   # READMEs, CONTRIBUTING, CHANGELOG, ADRs, docs/ folders
@@ -82,16 +82,24 @@ base_url = "https://api.doubleword.ai/v1"
 model = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"  # fallback; overridden by DOUBLEWORD_MODEL env var if set
 model_env = "DOUBLEWORD_MODEL"
 auth_env = "DOUBLEWORD_AUTH_TOKEN"
+context_window = 262000
 
 [llm.openai]
 base_url = "https://api.openai.com/v1"
 model = "gpt-4.1-mini"  # fallback; overridden by OPENAI_MODEL env var if set
 model_env = "OPENAI_MODEL"
 auth_env = "OPENAI_API_KEY"
+context_window = 1000000
 
 [llm.nebius]
 base_url = "https://api.tokenfactory.nebius.com/v1/"
-model = "moonshotai/Kimi-K2.5" # fallback; overridden by NEBIUS_MODEL env var if set
+model = "moonshotai/Kimi-K2.5"  # fallback; overridden by NEBIUS_MODEL env var if set
 model_env = "NEBIUS_MODEL"
 auth_env = "NEBIUS_API_KEY"
-max_output_tokens = 8000  # Kimi-K2.5 is a reasoning model; needs budget for chain-of-thought before output
+context_window = 256000           # update together with model when switching
+max_output_tokens = 8000         # Kimi-K2.5 is a reasoning model; safe cap for standard models too
+
+# Nebius model options — set model + context_window together, update token_threshold in [triage] to match:
+# model = "moonshotai/Kimi-K2.5"    context_window = 256000  (reasoning model: keep max_output_tokens >= 8000)
+# model = "zai-org/GLM-4.7-FP8"     context_window = 200000
+# model = "MiniMaxAI/MiniMax-M2.1"  context_window = 196000

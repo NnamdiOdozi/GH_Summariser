@@ -158,7 +158,7 @@ def triage_digest(digest: str, triage_config: dict) -> dict:
             "content": sec["content"],
             "tier": tier,
             "rank": tier_rank.get(tier, 99),
-            "tokens": estimate_tokens(sec["content"]),
+            "tokens": estimate_tokens(f"\n{SEP}\nFILE: {sec['filename']}\n{SEP}\n{sec['content']}"),
         })
 
     # Drop order: lowest priority tier first, then largest files first within tier
@@ -203,6 +203,25 @@ def triage_digest(digest: str, triage_config: dict) -> dict:
     trimmed = "\n".join(parts)
 
     post_tokens = estimate_tokens(trimmed)
+
+    # Pass 3: truncate directory tree header if still over threshold
+    if post_tokens > threshold:
+        logger.info("Triage pass 3: truncating directory tree header to meet threshold")
+        file_tokens = sum(s["tokens"] for s in kept)
+        available_header_tokens = max(0, threshold - file_tokens)
+        if available_header_tokens > 0:
+            max_chars = int(available_header_tokens * 3.5)
+            trunc = header[:max_chars]
+            trunc = trunc[:trunc.rfind('\n')] if '\n' in trunc else trunc
+            trunc += "\n[... directory tree truncated to fit context window ...]"
+        else:
+            trunc = "[directory tree omitted — file sections fill context window]"
+        parts = [trunc]
+        for sec in kept:
+            parts.append(f"\n{SEP}\nFILE: {sec['filename']}\n{SEP}\n{sec['content']}")
+        trimmed = "\n".join(parts)
+        post_tokens = estimate_tokens(trimmed)
+
     logger.info("Triage: %d → %d tokens", pre_tokens, post_tokens)
 
     return {
