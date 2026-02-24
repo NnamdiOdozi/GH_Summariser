@@ -171,9 +171,9 @@ To add a new LLM provider, add a `[llm.your_provider]` section with `base_url`, 
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/gitdigest` | Ingest a repo and optionally summarize |
-| GET | `/api/v1/gitdigest/{filename}` | Download a digest file |
-| GET | `/api/v1/gitdigest/{filename}/preview` | Preview digest as formatted Markdown |
+| POST | `/api/v1/summarize` | Ingest a repo and optionally summarize |
+| GET | `/api/v1/summarize/{filename}` | Download a digest file |
+| GET | `/api/v1/summarize/{filename}/preview` | Preview digest as formatted Markdown |
 | GET | `/api/v1/prompt` | View the default summary prompt |
 | GET | `/api/v1/health` | Health check |
 
@@ -199,7 +199,7 @@ To add a new LLM provider, add a `[llm.your_provider]` section with `base_url`, 
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8001/api/v1/gitdigest' \
+  'http://localhost:8001/api/v1/summarize' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -213,7 +213,7 @@ With branch and token (private repo, specific branch):
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8001/api/v1/gitdigest' \
+  'http://localhost:8001/api/v1/summarize' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -246,18 +246,7 @@ When `call_llm_api: true` (default), the response has summary fields at the top,
 }
 ```
 
-When triage is applied (digest was too large), a `triage` block is included:
-
-```json
-{
-  "triage": {
-    "applied": true,
-    "pre_triage_tokens": 285000,
-    "post_triage_tokens": 94500,
-    "files_dropped_count": 47
-  }
-}
-```
+A `triage` block is always present (see [Approach to Handling Repository Contents](#approach-to-handling-repository-contents) for details).
 
 When `call_llm_api: false`, `content` replaces the summary fields and contains the full raw digest text.
 
@@ -277,38 +266,13 @@ Errors return a JSON body with `status: "error"` and an appropriate HTTP status 
 | Digest exceeds context window | 422 | `"Digest exceeds the model's context window. Try adding exclude_patterns or set triage=true."` |
 | Unexpected error | 500 | `"gitingest failed: ..."` |
 
-## Digest Triage
+## Approach to Handling Repository Contents
 
-The triage system automatically trims digests that would exceed the LLM context window. It classifies files into signal tiers and drops lowest-signal files first, keeping the most useful content.
+Getting the right content into the LLM is the core challenge of this tool. Too much and you exceed the context window; too little and the summary is shallow. The solution is three sequential layers of content control, each configurable independently.
 
-**Tier order (highest to lowest signal — lowest signal dropped first):**
+### Layer 1 — Standard Default Exclusions
 
-| Tier | What it covers |
-|------|---------------|
-| docs | READMEs, CONTRIBUTING, CHANGELOG, docs/ folders |
-| skills | Files/folders with "skill" in the path |
-| build_deps | pyproject.toml, package.json, Dockerfile, requirements.txt |
-| entrypoints | main.py, app.py, server.ts, index.ts, etc. |
-| config_surfaces | Files with "config" or "settings" in name, .env.example |
-| domain_model | models/, schemas/, routes/, services/, controllers/ |
-| ci | .github/workflows/, deploy/ |
-| tests | Test files (off by default — verbose, low signal) |
-| other | Everything else |
-
-The triage threshold (`token_threshold` in `config.toml`, default 100K) is conservative to work across the smallest provider context windows. Each tier can be toggled on/off in `[triage.layers]`.
-
-## Branch Selection
-
-You can specify a branch in two ways:
-
-1. **Embed it in the URL** — e.g., `https://github.com/owner/repo/tree/dev`
-2. **Use the `branch` field** — takes priority over any branch in the URL
-
-If no branch is specified, the repo's default branch is used. Branch names are case-sensitive.
-
-## Default File Exclusions
-
-To keep digests focused on source code and reduce LLM token usage, the following are excluded by default. User-supplied `exclude_patterns` are **added on top** of these defaults (not instead of them).
+Before anything is sent anywhere, gitingest filters out files that have no value for code understanding. These are excluded by default for every request:
 
 | Category | Patterns |
 |----------|----------|
@@ -327,6 +291,58 @@ To keep digests focused on source code and reduce LLM token usage, the following
 | **AI agent config** | `**/.claude/**`, `**/.gemini/**`, `**/.codex/**` |
 | **Git internals** | `**/.git/**` |
 | **i18n/translations** | `**/locales/**`, `**/translations/**` |
+
+**Why?** Binary files, model weights, and data directories add bulk without providing code understanding. Lockfiles list pinned dependency versions with no architectural signal. Build output and caches duplicate what's already in source. Excluding these typically reduces digest size by 50–80% with no loss of useful information.
+
+### Layer 2 — User-Supplied Exclusion Patterns
+
+After the defaults, callers can add their own exclusions via the `exclude_patterns` field. These are **additive** — they extend the defaults, not replace them. This is intentional: there is no way to accidentally remove a sensible default by specifying your own patterns.
+
+```json
+{
+  "github_url": "https://github.com/owner/large-repo",
+  "exclude_patterns": ["tests/*", "docs/*", "examples/*", "fixtures/*"]
+}
+```
+
+This layer is useful for known-noisy directories specific to a given repo — large test suites, generated documentation, or fixture data that wasn't caught by Layer 1.
+
+### Layer 3 — Automatic Triage
+
+Even after layers 1 and 2, some repos produce digests too large for the LLM context window (large monorepos, repos with many source files). The triage system handles this automatically when `triage: true` (the default).
+
+**How it works:** Files in the digest are classified into signal tiers based on their path and name. When the estimated token count exceeds `token_threshold` (default: 100K), the lowest-signal files are dropped first — largest files in the lowest tier first — until the digest fits. If the digest still exceeds the threshold after dropping all other tiers, even documentation is trimmed (largest files first) as a last resort.
+
+**Tier order (highest to lowest signal — lowest dropped first):**
+
+| Tier | What it covers |
+|------|---------------|
+| docs | READMEs, CONTRIBUTING, CHANGELOG, docs/ folders |
+| skills | Files/folders with "skill" in the path (agent instructions) |
+| build_deps | pyproject.toml, package.json, Dockerfile, requirements.txt |
+| entrypoints | main.py, app.py, server.ts, index.ts, etc. |
+| config_surfaces | Files with "config" or "settings" in name, .env.example |
+| domain_model | models/, schemas/, routes/, services/, controllers/ |
+| ci | .github/workflows/, deploy/ |
+| tests | Test files — off by default (verbose, lower signal per token) |
+| other | Everything else |
+
+Each tier can be toggled on/off in `[triage.layers]` in `config.toml`. The `token_threshold` is set conservatively at 100K to work across the smallest provider context windows.
+
+The response always includes a `triage` block so you can see what happened:
+
+```json
+{
+  "triage": {
+    "applied": true,
+    "pre_triage_tokens": 285000,
+    "post_triage_tokens": 94500,
+    "files_dropped_count": 47
+  }
+}
+```
+
+When `applied` is `false`, `pre_triage_tokens` and `post_triage_tokens` will be equal and `files_dropped_count` will be 0.
 
 ## Focus Prompts
 
@@ -362,6 +378,8 @@ This tool is designed for **small to medium-sized codebases**. The triage system
 - Doubleword (Qwen3 30B): ~262K tokens; triage threshold set to 100K (conservative)
 - OpenAI gpt-4.1-mini: 1M tokens
 - Nebius MiniMax-M2.1: large context, fast, cheapest option
+
+**On model selection:** For this tool, context length ranks above coding specialization. Every file dropped by triage is information the model never sees, which directly hurts summary quality regardless of how capable the model is at coding. A general-purpose model with a large context window will outperform a coding-specialist model that has 40% of the repo's files dropped before it ever reads a line. Coding specialization becomes the tiebreaker once context is sufficient.
 
 ### Options for Very Large Codebases
 

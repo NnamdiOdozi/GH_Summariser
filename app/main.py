@@ -203,11 +203,15 @@ def run_gitdigest(
         if triage and triage_config.get("enabled", True):
             triage_result = triage_digest(digest_content, triage_config)
             digest_content = triage_result["text"]
-            if triage_result["triage_applied"]:
-                result_dict["triage_applied"] = True
-                result_dict["pre_triage_tokens"] = triage_result["pre_triage_tokens"]
-                result_dict["post_triage_tokens"] = triage_result["post_triage_tokens"]
-                result_dict["files_dropped_count"] = len(triage_result["files_dropped"])
+            result_dict["triage_applied"] = triage_result["triage_applied"]
+            result_dict["pre_triage_tokens"] = triage_result["pre_triage_tokens"]
+            result_dict["post_triage_tokens"] = triage_result["post_triage_tokens"]
+            result_dict["files_dropped_count"] = len(triage_result["files_dropped"])
+        else:
+            result_dict["triage_applied"] = False
+            result_dict["pre_triage_tokens"] = estimated_tokens
+            result_dict["post_triage_tokens"] = estimated_tokens
+            result_dict["files_dropped_count"] = 0
 
         # Call LLM API (2x multiplier gives headroom for markdown formatting overhead)
         max_tokens = int(word_count * 2.0)

@@ -25,7 +25,7 @@ class GitdigestRequest(BaseModel):
     triage: bool = Field(True, description="When True (default), automatically trims the digest to fit within the LLM context window by dropping lowest-signal files first. Disable to send the full digest as-is.")
 
 
-@router.post("/gitdigest", summary="Ingest GitHub repository for LLM summarization")
+@router.post("/summarize", summary="Ingest GitHub repository for LLM summarization")
 async def gitdigest_endpoint(request: GitdigestRequest):
     """
     Clone a GitHub repository, extract and summarise its contents for LLM analysis. Due to the context window limits of the models used (Qwen3 30B and gpt-4.1-mini), it cannot deal with large codebases.  Some ideas for handloing large codebases are provided in the README.md file. Below are the request parameters:
@@ -85,7 +85,7 @@ async def gitdigest_endpoint(request: GitdigestRequest):
 
         if request.call_llm_api:
             response_data["summary"] = result.get("summary", "")
-            response_data["technologies"] = result.get("technologies", [])
+            response_data["technologies"] = result.get("technologies", [])[:12]
             response_data["structure"] = result.get("structure", "")
         else:
             with open(result["output_file"], "r") as f:
@@ -95,13 +95,12 @@ async def gitdigest_endpoint(request: GitdigestRequest):
         response_data["output_file"] = result["output_file"]
         response_data["digest_stats"] = result["digest_stats"]
 
-        if result.get("triage_applied"):
-            response_data["triage"] = {
-                "applied": True,
-                "pre_triage_tokens": result["pre_triage_tokens"],
-                "post_triage_tokens": result["post_triage_tokens"],
-                "files_dropped_count": result["files_dropped_count"],
-            }
+        response_data["triage"] = {
+            "applied": result.get("triage_applied", False),
+            "pre_triage_tokens": result.get("pre_triage_tokens", 0),
+            "post_triage_tokens": result.get("post_triage_tokens", 0),
+            "files_dropped_count": result.get("files_dropped_count", 0),
+        }
 
         elapsed = time.time() - t0
         logger.info("POST /gitdigest completed in %.1fs (status=success)", elapsed)
@@ -126,7 +125,7 @@ async def gitdigest_endpoint(request: GitdigestRequest):
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
-@router.get("/gitdigest/{filename}", summary="Download digest file")
+@router.get("/summarize/{filename}", summary="Download digest file")
 async def download_digest(filename: str):
     """
     Download a previously generated digest file by filename.
@@ -147,7 +146,7 @@ async def download_digest(filename: str):
     return FileResponse(filepath, filename=filename)
 
 
-@router.get("/gitdigest/{filename}/preview", summary="Preview digest as formatted Markdown")
+@router.get("/summarize/{filename}/preview", summary="Preview digest as formatted Markdown")
 async def preview_digest(filename: str):
     """
     Returns a previously generated digest as a formatted Markdown document.
