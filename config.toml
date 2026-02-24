@@ -53,7 +53,7 @@ default_exclude_patterns = [
 
 [triage]
 enabled = true
-token_threshold = 100000   # conservative default; fits within the smallest providers (100K context window)
+token_threshold = 256000   # Nebius Kimi-K2.5 context window
 
 [triage.layers]
 docs            = true   # READMEs, CONTRIBUTING, CHANGELOG, ADRs, docs/ folders
@@ -73,7 +73,7 @@ max_log_bytes = 150000       # rotate at ~150KB (~1000 lines at ~150 chars/line)
 backup_count = 5             # keep api.log + 5 rotated files (api.log.1 … api.log.5)
 
 [llm]
-provider = "doubleword"  # "doubleword" or "openai"
+provider = "nebius"  # "doubleword", "openai", or "nebius"
 frequency_penalty = 0.3
 timeout = 300  # seconds
 
@@ -91,6 +91,7 @@ auth_env = "OPENAI_API_KEY"
 
 [llm.nebius]
 base_url = "https://api.tokenfactory.nebius.com/v1/"
-model = "moonshotai/Kimi-K2.5" # fallback; overridden by OPENAI_MODEL env var if set
+model = "moonshotai/Kimi-K2.5" # fallback; overridden by NEBIUS_MODEL env var if set
 model_env = "NEBIUS_MODEL"
 auth_env = "NEBIUS_API_KEY"
+max_output_tokens = 8000  # Kimi-K2.5 is a reasoning model; needs budget for chain-of-thought before output

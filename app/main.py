@@ -213,7 +213,8 @@ def run_gitdigest(
             result_dict["post_triage_tokens"] = estimated_tokens
             result_dict["files_dropped_count"] = 0
 
-        # Call LLM API (2x multiplier gives headroom for markdown formatting overhead)
+        # Call LLM API (2x multiplier gives headroom for markdown formatting overhead;
+        # reasoning models need a larger budget — override via max_output_tokens in config)
         max_tokens = int(word_count * 2.0)
         logger.info("Calling LLM (provider=%s, max_tokens=%d)", CONFIG["llm"]["provider"], max_tokens)
         t0 = time.time()
@@ -252,6 +253,7 @@ def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WOR
     api_token = os.getenv(provider_config["auth_env"])
     base_url = provider_config["base_url"]
     model = os.getenv(provider_config.get("model_env", ""), "") or provider_config["model"]
+    max_tokens = provider_config.get("max_output_tokens", max_tokens)
 
     if not api_token:
         raise ValueError(f"{provider_config['auth_env']} must be set in environment")
