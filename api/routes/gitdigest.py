@@ -28,7 +28,15 @@ class GitdigestRequest(BaseModel):
 @router.post("/summarize", summary="Ingest GitHub repository for LLM summarization")
 async def gitdigest_endpoint(request: GitdigestRequest):
     """
-    Clone a GitHub repository, extract and summarise its contents for LLM analysis. Due to the context window limits of the models used (Qwen3 30B and gpt-4.1-mini), it cannot deal with large codebases.  Some ideas for handloing large codebases are provided in the README.md file. Below are the request parameters:
+    Clone a GitHub repository, extract and summarise its contents for LLM analysis. 
+    
+    Due to the context window limits of LLMs, it excludes binaries and data files. These are set out in the config.toml file 
+    
+    Users are also able to add additional files and folder names and patterns to be excluded using the exclude_patterns fields. 
+    
+    As a 3rd layer, there is a triage that drops lowest-signal files to fit within the LLM context window. 
+    
+    Below are the request parameters:
 
     - **github_url**: GitHub repository URL. Can include branch (e.g., `https://github.com/owner/repo/tree/dev`)
     - **token**: Optional GitHub PAT for private repos
@@ -36,7 +44,7 @@ async def gitdigest_endpoint(request: GitdigestRequest):
     - **max_size**: Skip files larger than this size in bytes
     - **word_count**: Target word count for the summary (default: 750)
     - **call_llm_api**: Whether to call the LLM summarization API (default: True)
-    - **exclude_patterns**: Optional list of glob patterns to exclude files or directories from the digest (e.g., `["*.pdf", "*.jpg", "docs/*", "tests/*"]`). When omitted, sensible defaults are used that exclude binary files, images, data files, ML model weights, lockfiles, etc.
+    - **exclude_patterns**: Optional additional list of glob patterns to exclude files or directories from the digest (e.g., `["*.pdf", "*.jpg", "docs/*", "tests/*"]`). When omitted, sensible defaults are used that exclude binary files, images, data files, ML model weights, lockfiles, etc.
     - **focus**: Optional short instruction appended to the default summary prompt to steer the analysis. The default prompt is defined in `app/prompt.txt` in the project repo.
 
     **Example focus prompts:**
