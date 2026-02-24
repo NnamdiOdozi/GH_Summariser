@@ -1,0 +1,177 @@
+You are already doing the biggest win, which is excluding generated and binary junk. The next win is to treat a repo like a city map: you do not start by reading every street, you start with the **legend**, the **main roads**, and the **transport interchanges**, then you zoom into the neighbourhood you care about.
+
+Below are practical heuristics that work well when you have a tight token budget and you want “maximum signal per file.”
+
+## 1) Start with the files that explain “what this is” and “how to run it”
+
+These are high-signal because they compress intent and workflow.
+
+* **Root `README.md`** plus any `docs/README.md` or feature-level READMEs. These often encode architecture, commands, and boundaries.
+* **`CONTRIBUTING.md`, `DEVELOPMENT.md`, `docs/`, `ADR` (Architecture Decision Records)** if present. ADRs are gold because they tell you *why* things are weird.
+* **`CHANGELOG.md` / release notes** when you are debugging behaviour changes.
+
+Heuristic: if a file contains “run”, “install”, “architecture”, “design”, “decision”, “why”, it is almost always worth including.
+
+## 2) Then send “the build and dependency truth”
+
+These files define the runtime world and tell the model what libraries and frameworks exist.
+
+**Python**
+
+* `pyproject.toml` (and `poetry.lock` usually skip, but `pyproject.toml` is huge signal).
+* `requirements*.txt`, `setup.cfg`, `setup.py` (if older style).
+* `environment.yml` (Conda).
+* `Dockerfile`, `docker-compose.yml`.
+
+**Node / TypeScript**
+
+* `package.json` (very high signal), `tsconfig.json`, build tool configs (`vite.config.*`, `webpack.config.*`, `next.config.*`).
+
+Heuristic: include the **one** canonical dependency manifest per language and skip lockfiles unless your question is specifically about reproducibility or dependency resolution.
+
+## 3) Include the “entrypoints” and “wiring” files
+
+These answer “where does execution start?” and “how does the app assemble itself?”
+
+Examples:
+
+* `main.py`, `app.py`, `__main__.py`
+* `src/<project>/__init__.py` when it exposes the public API.
+* Web servers: `wsgi.py`, `asgi.py`, `server.py`
+* Framework bootstrap: `manage.py` (Django), `FastAPI` app creation file, `Flask` app factory, `celery.py`
+* For TypeScript: `src/index.ts`, `src/server.ts`, `pages/_app.tsx` (Next.js), etc.
+
+Heuristic: anything named **main, app, server, entry, bootstrap, factory** tends to be extremely informative.
+
+## 4) Send “configuration surfaces” that define behaviour and environments
+
+These are the knobs and dials: they explain how the same code behaves differently in dev versus prod.
+
+* `.env.example`, `.env.sample`, `config.yaml`, `settings.py`, `config.py`, `application.yml`
+* `nginx.conf`, `Procfile`, systemd service files if included
+* Feature flags, permissions, roles, routing tables
+
+Gotcha: **do not send real secrets**. Only example env files or redacted configs.
+
+## 5) Capture the “core domain model” before you capture utilities
+
+If the repo is about something (claims, policies, payments, users), there will be core objects and flows.
+
+Look for:
+
+* `models.py`, `schemas.py`, `domain/`, `entities/`, `types.ts`
+* Database layer: `migrations/` can be too big, but **one or two representative migrations** are very informative.
+* API layer: route definitions (`routes/`, `routers/`, `controllers/`)
+* “Use-case” or “service” layer: `services/`, `use_cases/`, `handlers/`
+
+Heuristic: pick **one “happy path” vertical slice** end-to-end: route/controller → service/use case → data access → model/schema.
+
+## 6) Include “tests that explain intended behaviour”
+
+A good test file is basically executable documentation.
+
+* One or two **high-level integration tests** (end-to-end tests, API tests).
+* A couple of **unit tests** around tricky logic.
+
+Heuristic: tests with names like `test_api_*`, `test_end_to_end_*`, `test_auth_*`, `test_payments_*` usually reveal boundaries and edge cases quickly.
+
+## 7) Prefer “hub” files over “leaf” files
+
+In any repo, most files are leaves (helpers used by one place). The high-signal files are hubs (imported by many places).
+
+Without running tooling, you can approximate hub-ness by:
+
+* Files with many imports and many references to other modules.
+* `index.ts`-style “barrel” exports.
+* Central registries: `urls.py` (Django), `router.py`, `di_container.py`, `container.ts`, `registry.py`.
+
+## 8) A simple, reliable selection recipe (works in most repos)
+
+If you want a repeatable “top 20 files” approach:
+
+1. Root docs: `README`, plus 1–3 best docs/ADRs.
+2. Build/deps: `pyproject.toml` or `package.json`, plus key build config.
+3. Runtime: `Dockerfile` / compose if present.
+4. Entrypoint: main/app/server file(s).
+5. Routing: routes/controllers/urls/router definitions.
+6. Core domain model: models/schemas/entities.
+7. One main “service” or “use case” module.
+8. One representative test file.
+9. Example config: `.env.example` / config templates.
+
+That set alone often lets an LLM answer 80 percent of “what is this repo and how does it work?” questions.
+
+## Common mistakes and “experienced-dev” gotchas
+
+* Reading only READMEs and missing that the real truth is in `pyproject.toml`, `package.json`, and the entrypoint.
+* Including too many utility modules instead of one end-to-end slice.
+* Dumping huge `docs/` trees; pick the top few that answer “architecture” and “how to run.”
+* Ignoring CI configuration (`.github/workflows/*`). One workflow file can reveal how tests, linting, packaging, and deploy really work.
+* Skipping API schemas (OpenAPI, Pydantic schemas, GraphQL schema). They often define the product more clearly than code.
+
+## A couple of extra questions that sharpen selection (and the implied answers)
+
+* Are you trying to understand **architecture**, **how to run**, **how to change a feature**, or **why a bug happens**?
+  The best file set differs: architecture wants docs + entrypoints; bug hunts want the specific vertical slice + tests + configs.
+* Is it a **library** or an **application**?
+  Libraries: prioritize exported public API files and examples. Applications: prioritize bootstrapping and wiring.
+
+## Nearby concepts to explore
+
+Repository “skeleton” summaries, call graph extraction, import graph ranking (hub detection), Retrieval-Augmented Generation for code (search then include), and architecture decision records.
+
+If you tell me one concrete task you do most often (for example “generate a repo overview,” “answer onboarding questions,” or “debug a specific error”), I can give you a tighter, task-specific file shortlist that is even more token-efficient.
+
+
+
+Yes. If you have **PRDs (Project Requirements Documents)**, **specifications**, and **architecture docs**, they are often *higher signal than code*, especially for “what is this system meant to do?” and “what does correct behaviour look like?”
+
+Think of it like renovating a house. The code is the wiring and plumbing, but the PRD and spec are the architect’s drawings and the building regulations. If you only look at wiring, you can still figure things out, but you waste time and you misinterpret intent.
+
+### Which docs are most valuable, and why
+
+* **PRD:** This is the “why” and the “what.” It defines goals, users, success metrics, and scope boundaries. Great for preventing the model from inventing features that are not intended.
+* **Specification (functional spec, technical spec, protocol spec):** This is the “exactly how it should behave.” Gold for edge cases, constraints, and “must” versus “should.”
+* **Architecture docs and diagrams:** This is the “how it is put together.” Great for identifying services, boundaries, dependencies, data flows, and failure modes.
+* **ADRs (Architecture Decision Records):** The “why it is *this* way and not another way.” This is where the weird-but-important constraints live (performance, compliance, legacy, staffing, vendor lock-in, security).
+
+### The main tension: docs are high-signal, but also high-risk
+
+Docs can be stale. So the trick is to include docs that are either:
+
+* **Normative:** “the system must do X” (specs, contracts, SLAs), or
+* **Operational:** “how we actually build and run it” (runbooks, CI pipelines, deployment docs), or
+* **Recent decisions:** ADRs tied to key changes.
+
+A common misconception is “docs are always truth.” In mature repos, code is truth; docs are intent. You want both so the model can spot mismatches: *“The PRD says X, but the route/controller implements Y.”*
+
+### A practical ordering that works well under a token budget
+
+If you can only send a handful of files, a strong ordering is:
+
+1. **PRD** (or the best “Product Overview” doc).
+2. **Spec / API contract** (OpenAPI, GraphQL schema, protobuf, or a functional spec).
+3. **Architecture overview** (one doc, not a whole wiki dump).
+4. **ADRs** (top 3–10 most relevant to current architecture).
+5. Then the code: **entrypoint + routing + one vertical slice + one representative test**.
+
+### Gotchas even experienced teams hit
+
+* **Specs duplicated in multiple places** (Confluence plus repo plus comments) and they disagree.
+* **Architecture diagrams that are pretty but not actionable** (no service names, no data stores, no boundaries).
+* **PRDs that describe aspirations** rather than what shipped. Look for dates, versioning, or “MVP” markers.
+* **Docs that omit failure modes**. Runbooks and incident postmortems often capture the real operational truth.
+
+### “Most informative” docs to include when they exist
+
+* `docs/architecture.md`, `docs/system_design.md`, `docs/overview.md`
+* `docs/adr/*.md`
+* `docs/api.*` or `openapi.yaml`
+* `docs/specs/*` (but pick the one that matches your question)
+* `runbook.md`, `ops.md`, `.github/workflows/*` (one key workflow file)
+
+### Similar concepts worth checking out
+
+Architecture Decision Records, OpenAPI and JSON Schema contracts, C4 model diagrams (Context, Containers, Components, Code), runbooks and incident postmortems, and “living documentation” generated from code (for example docstrings plus automatic API docs).
+
+If you want one extra step that pays off hugely: when you include a PRD/spec, also include **one file that proves it is wired into reality**, like the main router or the API schema. That pairing (intent + contract + wiring) is where LLM understanding becomes noticeably more accurate.
