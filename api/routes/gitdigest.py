@@ -32,9 +32,9 @@ async def gitdigest_endpoint(request: GitdigestRequest):
     
     Due to the context window limits of LLMs, it excludes binaries and data files. These are set out in the config.toml file 
     
-    Users are also able to add additional files and folder names and patterns to be excluded using the exclude_patterns fields. 
+    Users are also able to add additional files and folder names and patterns to be excluded using the exclude_patterns field. 
     
-    As a 3rd layer, there is a triage that drops lowest-signal files to fit within the LLM context window. 
+    As a 3rd layer, there is a triage mechanism that drops lowest-signal files to fit within the LLM context window. 
     
     Below are the request parameters:
 

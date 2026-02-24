@@ -6,7 +6,7 @@ A FastAPI-based service that ingests GitHub repositories and optionally generate
 
 ## Features
 
-- **Repository Ingestion**: Clone any GitHub repo and extract its contents as a formatted digest
+- **Repository Ingestion**: Clone any GitHub repo and extract its contents as a formatted digest using third-party Gitingest tool
 - **LLM Summarization**: Structured JSON output — summary, technologies list, and repo structure in one call
 - **Digest Triage**: Automatically trims large digests to fit within the LLM context window by dropping lowest-signal files first
 - **REST API**: Easy integration with web or mobile frontends
@@ -48,10 +48,10 @@ cp .env.claude.example .env.claude   # if an example exists, otherwise create ma
 Add your API keys to `.env.claude`:
 
 ```env
-GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token
+
 DOUBLEWORD_AUTH_TOKEN=your_doubleword_token
-# OPENAI_API_KEY=your_openai_key         # only if using openai provider
-# NEBIUS_API_KEY=your_nebius_key         # only if using nebius provider
+OPENAI_API_KEY=your_openai_key         # only if using openai provider
+NEBIUS_API_KEY=your_nebius_key         # only if using nebius provider
 ```
 
 Only the key for the active provider (set in `config.toml`) is required.
@@ -114,56 +114,7 @@ gitdigest -u https://github.com/owner/private-repo -t ghp_your_token -c
 
 ### Application Settings (`config.toml`)
 
-All configurable settings live in `config.toml`. No Python code changes needed to adjust defaults.
-
-```toml
-[digest]
-output_dir = "git_summaries"
-max_summaries = 20           # keep only the N most recent digest pairs; older ones are deleted
-default_word_count = 750
-default_max_size = 10485760  # 10MB
-
-[triage]
-enabled = true
-token_threshold = 100000     # trim digest if estimated tokens exceed this
-
-[triage.layers]
-docs            = true   # READMEs, CONTRIBUTING, CHANGELOG, docs/ folders
-skills          = true   # files/folders with "skill" in name (agent instructions)
-build_deps      = true   # pyproject.toml, package.json, Dockerfile, requirements.txt
-entrypoints     = true   # main.py, app.py, server.ts, index.ts
-config_surfaces = true   # files with "config" or "settings" in name, .env.example
-domain_model    = true   # models/, schemas/, routes/, services/, controllers/
-ci              = true   # .github/workflows/, deploy/
-tests           = false  # test files — off by default (verbose, lower signal per token)
-
-[logging]
-level = "INFO"
-log_dir = "logs"
-log_file = "api.log"
-max_log_bytes = 150000   # rotate at ~150KB (~1000 lines)
-backup_count = 5         # keep api.log + 5 rotated files
-
-[llm]
-provider = "doubleword"  # "doubleword", "openai", or "nebius"
-frequency_penalty = 0.3
-timeout = 300
-
-[llm.doubleword]
-base_url = "https://api.doubleword.ai/v1"
-model = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"
-auth_env = "DOUBLEWORD_AUTH_TOKEN"
-
-[llm.openai]
-base_url = "https://api.openai.com/v1"
-model = "gpt-4.1-mini"
-auth_env = "OPENAI_API_KEY"
-
-[llm.nebius]
-base_url = "https://api.tokenfactory.nebius.com/v1/"
-model = "MiniMaxAI/MiniMax-M2.1"
-auth_env = "NEBIUS_API_KEY"
-```
+All configurable settings live in `config.toml`. No Python code changes needed to adjust defaults. The sections in the config file are digest, triage, triage.layers, logging, llm and llm.provider
 
 To add a new LLM provider, add a `[llm.your_provider]` section with `base_url`, `model`, and `auth_env`, then set `provider = "your_provider"` in `[llm]`.
 
@@ -196,18 +147,6 @@ To add a new LLM provider, add a `[llm.your_provider]` section with `base_url`, 
 - `triage` — `true` (default) trims digest to fit context window; `false` sends full digest as-is
 
 ## Example CURL Request
-
-```bash
-curl -X 'POST' \
-  'http://localhost:8001/api/v1/summarize' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "github_url": "https://github.com/NnamdiOdozi/mlx-digit-app",
-  "word_count": 750,
-  "call_llm_api": true
-}'
-```
 
 With branch and token (private repo, specific branch):
 
@@ -371,14 +310,10 @@ The file count, folder count, and digest content are parsed from the raw text ou
 
 If gitingest changes its output format in a future version, update the tree parser in `app/main.py` (search for `tree_separator`). The core digest and LLM summarization would still work — only `file_count` and `folder_count` would be affected.
 
-## Context Window Limitations
-
-This tool is designed for **small to medium-sized codebases**. The triage system helps, but extremely large repos may still exceed the context window after triage.
-
 **Current provider context windows:**
 - Doubleword (Qwen3 30B): ~262K tokens; triage threshold set to 100K (conservative)
 - OpenAI gpt-4.1-mini: 1M tokens
-- Nebius MiniMax-M2.1: large context, fast, cheapest option
+- Nebius MiniMax-M2.1: 
 
 **On model selection:** For this tool, context length ranks above coding specialization. Every file dropped by triage is information the model never sees, which directly hurts summary quality regardless of how capable the model is at coding. A general-purpose model with a large context window will outperform a coding-specialist model that has 40% of the repo's files dropped before it ever reads a line. Coding specialization becomes the tiebreaker once context is sufficient.
 
@@ -390,3 +325,4 @@ This tool is designed for **small to medium-sized codebases**. The triage system
 4. **Recursive Language Models (RLMs)** — give the LLM file exploration tools (bash, grep, find); sub-agents explore specific directories and report back to a parent agent
 5. **RAG** — embed digest chunks in a vector database (Chroma, Pinecone, pgvector), query by question
 6. **Page index** — build a searchable index with section references for targeted lookup rather than full summaries
+6. **Agentic search** - Using a single or multi-agent system to serach through the codebase digest
