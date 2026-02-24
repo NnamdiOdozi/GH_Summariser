@@ -46,6 +46,7 @@ async def gitdigest_endpoint(request: GitdigestRequest):
     - **call_llm_api**: Whether to call the LLM summarization API (default: True)
     - **exclude_patterns**: Optional additional list of glob patterns to exclude files or directories from the digest (e.g., `["*.pdf", "*.jpg", "docs/*", "tests/*"]`). When omitted, sensible defaults are used that exclude binary files, images, data files, ML model weights, lockfiles, etc.
     - **focus**: Optional short instruction appended to the default summary prompt to steer the analysis. The default prompt is defined in `app/prompt.txt` in the project repo.
+    - **triage**: Optional boolean, default `true`. When true, the digest is automatically trimmed to fit within the LLM context window by classifying files into signal tiers and dropping the lowest-signal files first. Set to `false` to send the full digest as-is.
 
     **Example focus prompts:**
     - "What does this system do at a high level?"
