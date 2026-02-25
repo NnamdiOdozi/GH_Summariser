@@ -19,6 +19,10 @@
 - Avoid bloated code that handles too many eventualities. Simple code with clear failure modes is easier to debug than over-engineered code with graceful fallbacks nobody will ever trigger.
 - Prefer flat code over deeply nested conditionals. Early returns are clearer than nested if/else chains.
 
+### Linting and Import Checks
+- Run `ruff check .` from the project root before committing Python code. Fix all errors; do not suppress warnings without a comment explaining why.
+- After any file rename or directory restructure, verify imports still resolve: `python -c "import app; import api"` (adjust to the project's top-level packages). A misnamed file (e.g. `__init__,py` instead of `__init__.py`) will not raise an error at rename time but will silently break imports at runtime or packaging time.
+
 ### Logging
 - Use Python's `logging` module with timestamps and log levels — not bare `print()` statements. Format should include timestamp, level, and message at minimum (e.g., `2025-06-15 14:32:01 INFO  Processing repo owner/repo`).
 - Log to a file in a dedicated `logs/` directory at the project root (e.g., `logs/api.log`). This directory should be gitignored.

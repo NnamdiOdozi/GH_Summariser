@@ -319,6 +319,8 @@ def main():
     parser.add_argument("-m", "--max-size", type=int, default=DEFAULT_MAX_SIZE, help=f"Max file size in bytes (default: {DEFAULT_MAX_SIZE})")
     parser.add_argument("-e", "--exclude-pattern", action="append", default=None, dest="exclude_patterns",
                         help="Glob pattern to exclude (repeatable). Defaults to common binary/data extensions.")
+    parser.add_argument("-f", "--focus", default=None, help="Focus instruction appended to the LLM prompt (e.g. 'authentication flow')")
+    parser.add_argument("--no-triage", action="store_true", help="Disable triage (send full digest to LLM, useful for debugging)")
 
     args = parser.parse_args()
 
@@ -332,6 +334,8 @@ def main():
         call_llm_api=args.call_llm_api,
         max_size=args.max_size,
         exclude_patterns=args.exclude_patterns,
+        focus=args.focus,
+        triage=not args.no_triage,
     )
 
     print(f"Output saved to: {result['output_file']}")
