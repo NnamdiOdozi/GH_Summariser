@@ -22,7 +22,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.t
 with open(CONFIG_PATH, "rb") as _f:
     CONFIG = tomllib.load(_f)
 
-# Constants and defaults — all read from config.toml
+# Constants and defaults — all read from config.toml.
 DEFAULT_WORD_COUNT = CONFIG["digest"]["default_word_count"]
 DEFAULT_MAX_SIZE = CONFIG["digest"]["default_max_size"]
 DEFAULT_FREQUENCY_PENALTY = CONFIG["llm"].get("frequency_penalty", 0.3)
