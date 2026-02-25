@@ -24,6 +24,7 @@ def parse_sections(digest: str) -> tuple[str, list[dict]]:
     Uses a boundary-aware regex anchored on the double-separator + FILE: header pattern
     so that stray separator lines inside file content don't drift the parser.
     """
+    digest = digest.replace("\r\n", "\n")  # normalise Windows line endings before regex match
     boundary = re.compile(r'(?m)^={48}$\nFILE: (.+)\n^={48}$\n?')
     matches = list(boundary.finditer(digest))
     if not matches:
