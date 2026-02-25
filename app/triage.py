@@ -1,5 +1,6 @@
 """Post-ingest triage: parse digest, classify files by signal tier, trim to token budget."""
 import logging
+import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -18,20 +19,22 @@ def estimate_tokens(text: str) -> int:
 
 
 def parse_sections(digest: str) -> tuple[str, list[dict]]:
-    """Split digest into (header, [{filename, content}, ...])."""
-    parts = digest.split(SEP)
-    header = parts[0].strip()
+    """Split digest into (header, [{filename, content}, ...]).
+
+    Uses a boundary-aware regex anchored on the double-separator + FILE: header pattern
+    so that stray separator lines inside file content don't drift the parser.
+    """
+    boundary = re.compile(r'(?m)^={48}$\nFILE: (.+)\n^={48}$\n?')
+    matches = list(boundary.finditer(digest))
+    if not matches:
+        return digest.strip(), []
+    header = digest[:matches[0].start()].strip()
     sections = []
-    i = 1
-    while i < len(parts) - 1:
-        label = parts[i].strip()
-        if label.startswith("FILE: "):
-            filename = label[6:].strip()
-            content = parts[i + 1].strip() if i + 1 < len(parts) else ""
-            sections.append({"filename": filename, "content": content})
-            i += 2
-        else:
-            i += 1
+    for i, m in enumerate(matches):
+        filename = m.group(1).strip()
+        content_start = m.end()
+        content_end = matches[i + 1].start() if i + 1 < len(matches) else len(digest)
+        sections.append({"filename": filename, "content": digest[content_start:content_end].strip()})
     return header, sections
 
 
