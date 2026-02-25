@@ -221,7 +221,7 @@ Even after layers 1 and 2, some repos produce digests too large for the LLM cont
 | tests | Test files — off by default (verbose, lower signal per token) |
 | other | Everything else |
 
-Each tier can be toggled on/off in `[triage.layers]` in `config.toml`. The `token_threshold` is set conservatively at 100K to work across the smallest provider context windows. To use more of a larger model's context window, raise `token_threshold` to match — for example, 256000 for Nebius Kimi-K2.5 or 1000000 for OpenAI gpt-4.1-mini.
+Each tier can be toggled on/off in `[triage.layers]` in `config.toml`. The `token_threshold` is set conservatively at 100K to work across the smallest provider context windows. To use more of a larger model's context window, raise `token_threshold` to match — for example, 256000 for Nebius Kimi-K2.5 or 1000000 (rate limits will need to be taken into account) for OpenAI gpt-4.1-mini.
 
 **Token estimation:** Token count is estimated locally using `chars ÷ 3.5`. This is a good approximation for mixed code/prose and, crucially, requires no network call to a remote tokenizer — keeping triage fast and self-contained. Adjust `token_threshold` in `config.toml` to tune how aggressively the digest is trimmed.
 
