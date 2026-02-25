@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 SEP = "=" * 48
 
 # Tier order: highest signal first, lowest last
-TIER_ORDER = ["docs", "skills", "build_deps", "entrypoints", "config_surfaces",
-              "domain_model", "ci", "tests", "other"]
+TIER_ORDER = ["docs_contract", "docs_narrative", "skills", "build_deps", "entrypoints",
+              "config_surfaces", "domain_model", "ci", "tests", "other"]
 
 
 def estimate_tokens(text: str) -> int:
@@ -43,14 +43,25 @@ def _file_tier(filepath: str, layers: dict) -> str:
     parts = [x.lower() for x in p.parts]
 
     def in_path(fragment: str) -> bool:
+        # substring match — fine for most tiers but NOT for docs (would match "docker" → "doc")
         return any(fragment in part for part in parts)
 
-    # Tier 1: Docs — READMEs, architecture docs, ADRs, CHANGELOG
-    if layers.get("docs", True):
+    def in_path_exact(segment: str) -> bool:
+        return segment in parts
+
+    # Tier 1a: Contract docs — specs, schemas, ADRs, PRDs, OpenAPI (higher signal than narrative)
+    if layers.get("docs_contract", True):
+        if (in_path_exact("adr") or in_path_exact("adrs") or in_path_exact("specs") or
+                any(x in name for x in ("openapi", "swagger", "asyncapi")) or
+                any(name.startswith(x) for x in ("spec", "prd", "requirements", "schema"))):
+            return "docs_contract"
+
+    # Tier 1b: Narrative docs — READMEs, tutorials, CHANGELOG (uses exact segment match)
+    if layers.get("docs_narrative", True):
         if (name.startswith("readme") or name.startswith("contributing") or
                 name.startswith("changelog") or name.startswith("development") or
-                in_path("docs") or in_path("doc") or in_path("adr")):
-            return "docs"
+                in_path_exact("docs") or in_path_exact("doc")):
+            return "docs_narrative"
 
     # Tier 2: Skills — agent instruction files and AI agent config dirs (high-signal, condensed)
     if layers.get("skills", True):
@@ -168,27 +179,30 @@ def triage_digest(digest: str, triage_config: dict) -> dict:
     files_dropped = []
     current_tokens = pre_tokens
 
-    # Pass 1: drop everything except docs (highest signal tier)
+    # Pass 1: drop everything except docs tiers (both contract and narrative)
     for item in drop_order:
         if current_tokens <= threshold:
             break
-        if item["tier"] == "docs":
+        if item["tier"] in {"docs_contract", "docs_narrative"}:
             continue
         keep_set.discard(item["filename"])
         files_dropped.append(item["filename"])
         current_tokens -= item["tokens"]
 
-    # Pass 2: if still over threshold, drop even docs largest-first
+    # Pass 2: if still over, drop narrative docs first then contract docs (largest-first within each)
     if current_tokens > threshold:
-        logger.info("Triage pass 2: dropping docs to meet threshold")
-        for item in sorted(scored, key=lambda x: -x["tokens"]):
+        for doc_tier in ("docs_narrative", "docs_contract"):
             if current_tokens <= threshold:
                 break
-            if item["filename"] not in keep_set:
-                continue
-            keep_set.discard(item["filename"])
-            files_dropped.append(item["filename"])
-            current_tokens -= item["tokens"]
+            logger.info("Triage pass 2: dropping %s to meet threshold", doc_tier)
+            for item in sorted(scored, key=lambda x: -x["tokens"]):
+                if current_tokens <= threshold:
+                    break
+                if item["filename"] not in keep_set or item["tier"] != doc_tier:
+                    continue
+                keep_set.discard(item["filename"])
+                files_dropped.append(item["filename"])
+                current_tokens -= item["tokens"]
 
     logger.info("Triage dropped %d files: %s%s",
                 len(files_dropped),
@@ -203,6 +217,7 @@ def triage_digest(digest: str, triage_config: dict) -> dict:
     trimmed = "\n".join(parts)
 
     post_tokens = estimate_tokens(trimmed)
+    effective_header = header  # may be replaced by truncated version in pass 3
 
     # Pass 3: truncate directory tree header if still over threshold
     if post_tokens > threshold:
@@ -216,7 +231,27 @@ def triage_digest(digest: str, triage_config: dict) -> dict:
             trunc += "\n[... directory tree truncated to fit context window ...]"
         else:
             trunc = "[directory tree omitted — file sections fill context window]"
-        parts = [trunc]
+        effective_header = trunc
+        parts = [effective_header]
+        for sec in kept:
+            parts.append(f"\n{SEP}\nFILE: {sec['filename']}\n{SEP}\n{sec['content']}")
+        trimmed = "\n".join(parts)
+        post_tokens = estimate_tokens(trimmed)
+
+    # Pass 4: hard guard — if still over threshold (e.g. tokenizer variance), drop largest remaining files
+    if post_tokens > threshold:
+        logger.warning("Triage pass 4: still over threshold (%d > %d), force-dropping largest files",
+                       post_tokens, threshold)
+        kept_scored = sorted(kept, key=lambda s: -estimate_tokens(
+            f"\n{SEP}\nFILE: {s['filename']}\n{SEP}\n{s['content']}"))
+        for sec in kept_scored:
+            if post_tokens <= threshold:
+                break
+            sec_tokens = estimate_tokens(f"\n{SEP}\nFILE: {sec['filename']}\n{SEP}\n{sec['content']}")
+            kept = [k for k in kept if k["filename"] != sec["filename"]]
+            files_dropped.append(sec["filename"])
+            post_tokens -= sec_tokens
+        parts = [effective_header]
         for sec in kept:
             parts.append(f"\n{SEP}\nFILE: {sec['filename']}\n{SEP}\n{sec['content']}")
         trimmed = "\n".join(parts)

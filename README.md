@@ -63,52 +63,6 @@ uv run python -m api.main
 
 The API runs on `http://127.0.0.1:8001` (Swagger UI at `/docs`).
 
-## CLI Usage
-
-A command-line wrapper is available for quick local usage without starting the API server.
-
-### First-time setup
-
-Add the following function to your `~/.bashrc` (adjust `project_dir` to match your clone location):
-
-```bash
-# Run from anywhere: gitdigest -u <url> [-t token] [-b branch] [-w word_count] [-c] [-m max_size]
-gitdigest() {
-    local project_dir="$HOME/projects/nebius_git_summariser"
-
-    if [ -f "$project_dir/.env.claude" ]; then
-        set -a
-        source "$project_dir/.env.claude"
-        set +a
-    fi
-
-    export PYTHONPATH="$project_dir:$PYTHONPATH"
-    uv run --project "$project_dir" python "$project_dir/app/main.py" "$@"
-}
-```
-
-Reload your shell:
-
-```bash
-source ~/.bashrc
-```
-
-### CLI Examples
-
-```bash
-# Basic digest without LLM summary
-gitdigest -u https://github.com/owner/repo
-
-# With LLM summary (-c flag)
-gitdigest -u https://github.com/owner/repo -c
-
-# Specific branch and word count
-gitdigest -u https://github.com/owner/repo -b dev -w 1000 -c
-
-# Private repo with token
-gitdigest -u https://github.com/owner/private-repo -t ghp_your_token -c
-```
-
 ## Configuration
 
 ### Application Settings (`config.toml`)
@@ -256,7 +210,8 @@ Even after layers 1 and 2, some repos produce digests too large for the LLM cont
 
 | Tier | What it covers |
 |------|---------------|
-| docs | READMEs, CONTRIBUTING, CHANGELOG, docs/ folders |
+| docs_contract | API specs (OpenAPI, AsyncAPI), ADRs, PRDs, requirements, schema files — kept until last resort |
+| docs_narrative | READMEs, CONTRIBUTING, CHANGELOG, docs/ folders — dropped before contract docs under pressure |
 | skills | Files/folders with "skill" in the path; also `.claude/`, `.gemini/`, `.codex/` agent config dirs |
 | build_deps | pyproject.toml, package.json, Dockerfile, requirements.txt |
 | entrypoints | main.py, app.py, server.ts, index.ts, etc. |
@@ -305,13 +260,20 @@ By default, the LLM receives a general-purpose summarization prompt (see [`app/p
 
 Tested with private GitHub repositories using a PAT. Pass a token with `repo` scope via the `token` field (API) or `-t` flag (CLI). Without a valid token the API returns a 401 with a clear error message.
 
-### Large codebases — Babel
+### Codebase scale — observed triage behaviour
 
-[babel/babel](https://github.com/babel/babel) is a large JavaScript monorepo. Pre-triage it produces digests in the range of 250K–400K tokens (depending on default exclusions). Observations:
+Tested across three repo sizes. Token counts estimated via `chars ÷ 3.5`.
 
-- Triage dropped the majority of files to fit within the 100K default threshold, retaining entrypoints, config surfaces, and domain model files
-- Setting `token_threshold = 256000` (Nebius) or `token_threshold = 1000000` (OpenAI gpt-4.1-mini) allows significantly more of the codebase to be passed through
-- Adding `exclude_patterns` such as `["packages/*/test/**", "packages/*/fixtures/**"]` can substantially reduce pre-triage token count before triage runs
+| Repo | Size | Pre-triage tokens | Post-triage tokens | Files dropped | Notes |
+|------|------|------------------:|-------------------:|--------------:|-------|
+| NnamdiOdozi/mlx-digit-app | Small | 12,559 | 12,559 | 0 | Under threshold; triage not triggered |
+| Azure-Samples/python-agentframework-demos | Medium | 200,559 | 98,604 | 12 | At 100K threshold |
+| babel/babel | Large monorepo | 4,179,344 | 178,007 | 10,000 | At 178K threshold; header truncation (pass 3) also fired |
+
+For Babel, even after dropping all 10,000 non-doc files the directory tree header alone was ~202K tokens (gitingest lists every path). Pass 3 truncated the header to fit. At 100K threshold, Babel trims to ~99K with ~10,000+ files dropped.
+
+- Setting `token_threshold` higher allows significantly more of the codebase through — e.g. 178K for Nebius MiniMax, 240K for Doubleword
+- Adding `exclude_patterns` such as `["packages/*/test/**", "packages/*/fixtures/**"]` reduces pre-triage count before triage runs
 
 ### Specific branches
 
@@ -329,13 +291,13 @@ The file count, folder count, and digest content are parsed from the raw text ou
 
 If gitingest changes its output format in a future version, update the tree parser in `app/main.py` (search for `tree_separator`). The core digest and LLM summarization would still work — only `file_count` and `folder_count` would be affected.
 
-**On model selection (tested 2026-02-24, 100K token flat comparison):** Context window size turned out not to be the dominant factor — instruction-following, output consistency, and latency stability matter more. All five models were tested on identical input (same repo, same 100K token budget) using `response_format=json_schema`. Ranked by reliability and output quality:
+**On model selection (tested 2026-02-24, 100K token flat comparison):** We initially expected the ranking to follow: (1) context window size — more context means fewer files dropped; (2) code understanding capability; (3) cost. In practice, instruction-following, output consistency, and latency stability proved more decisive. All five models were tested on identical input (same repo, same 100K token budget) using `response_format=json_schema`. Ranked by reliability and output quality:
 
-1. **Doubleword Qwen3-30B** — 20s, 17 techs, 884 words, zero non-Latin bleed. Fastest and cleanest across all repo sizes. Best all-round choice.
-2. **OpenAI gpt-4.1-mini** — 24s, 13 techs, 850 words, clean output. Reliable, but tier-1 accounts hit a ~400K TPM rate limit that caps effective usable context to ~100K tokens for large repos.
-3. **Nebius MiniMax-M2.1** — 38s, 22 techs, 816 words. Good quality at scale with `max_output_tokens=8000`; occasional non-Latin reasoning bleed under pressure.
-4. **Nebius GLM-4.7-FP8** — Valid JSON on small repos but thin output at 100K (124 words, 4 techs) and null content above 153K tokens. Degrades sharply with context size.
-5. **Nebius Kimi-K2.5** — Valid JSON but wildly variable latency (36s–209s on identical input). Unreliable for production use.
+1. **Doubleword Qwen3-30B** (262K context) — 20s, 17 techs, 884 words, zero non-Latin bleed. Fastest and cleanest across all repo sizes. Best all-round choice.
+2. **OpenAI gpt-4.1-mini** (1M context, but see rate limit caveat below) — 24s, 13 techs, 850 words, clean output. Reliable, but tier-1 accounts hit a ~400K TPM rate limit that caps effective usable context to ~100K tokens for large repos regardless of the advertised 1M window.
+3. **Nebius MiniMax-M2.1** (196K context) — 38s, 22 techs, 816 words. Good quality at scale with `max_output_tokens=8000`; occasional non-Latin reasoning bleed under higher word count pressure.
+4. **Nebius GLM-4.7-FP8** (200K context) — Valid JSON on small repos but thin output at 100K (124 words, 4 techs) and null content above 153K tokens. Degrades sharply with context size.
+5. **Nebius Kimi-K2.5** (256K context) — Multiple issues: wildly variable latency (36s–209s on identical input), JSON validity failures with `json_object` mode, tendency to generate 3800+ word summaries ignoring the word count instruction, and non-Latin character bleed. Unreliable for production use.
 
 **On `response_format`:** `json_schema` is significantly better than `json_object` for all Nebius reasoning models. With `json_object`, MiniMax leaked Chinese chain-of-thought into the summary field at higher word counts; `json_schema` largely eliminates this by giving the model an explicit field scaffold. GLM, which produced invalid JSON with `json_object`, produces valid (if thin) JSON with `json_schema` on smaller inputs. All three Nebius models are reasoning models that share their output token budget between chain-of-thought and response — `max_output_tokens = 8000` is required in config to avoid null responses.
 
@@ -348,3 +310,47 @@ If gitingest changes its output format in a future version, update the tree pars
 5. **RAG** — embed digest chunks in a vector database (Chroma, Pinecone, pgvector), query by question
 6. **Page index** — build a searchable index with section references for targeted lookup rather than full summaries
 7. **Agentic search** — using a single or multi-agent system to search through the codebase digest
+
+---
+
+## Appendix: CLI Usage
+
+A command-line wrapper is available for quick local usage without starting the API server. This is peripheral to the main use case (REST API) but useful for one-off local runs.
+
+### Setup
+
+Add the following function to your `~/.bashrc` (adjust `project_dir` to match your clone location):
+
+```bash
+# Run from anywhere: gitdigest -u <url> [-t token] [-b branch] [-w word_count] [-c] [-m max_size]
+gitdigest() {
+    local project_dir="$HOME/projects/nebius_git_summariser"
+
+    if [ -f "$project_dir/.env.claude" ]; then
+        set -a
+        source "$project_dir/.env.claude"
+        set +a
+    fi
+
+    export PYTHONPATH="$project_dir:$PYTHONPATH"
+    uv run --project "$project_dir" python "$project_dir/app/main.py" "$@"
+}
+```
+
+Reload your shell: `source ~/.bashrc`
+
+### Examples
+
+```bash
+# Basic digest without LLM summary
+gitdigest -u https://github.com/owner/repo
+
+# With LLM summary (-c flag)
+gitdigest -u https://github.com/owner/repo -c
+
+# Specific branch and word count
+gitdigest -u https://github.com/owner/repo -b dev -w 1000 -c
+
+# Private repo with token
+gitdigest -u https://github.com/owner/private-repo -t ghp_your_token -c
+```

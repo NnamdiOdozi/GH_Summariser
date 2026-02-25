@@ -63,7 +63,8 @@ enabled = true
 token_threshold = 100000
 
 [triage.layers]
-docs            = true   # READMEs, CONTRIBUTING, CHANGELOG, ADRs, docs/ folders
+docs_contract   = true   # API specs, OpenAPI, ADRs, PRDs, requirements, schemas — highest signal docs
+docs_narrative  = true   # READMEs, CONTRIBUTING, CHANGELOG, tutorials — kept but dropped before contract docs
 skills          = true   # files/folders with "skill" in name (agent instructions)
 build_deps      = true   # pyproject.toml, package.json, Dockerfile, requirements.txt etc.
 entrypoints     = true   # main.py, app.py, server.ts, index.ts etc.
