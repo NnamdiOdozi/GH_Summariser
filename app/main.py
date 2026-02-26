@@ -7,6 +7,7 @@ import sys
 import json
 import time
 import argparse
+import asyncio
 import tomllib
 from urllib.parse import urlparse
 
@@ -21,6 +22,9 @@ logger = logging.getLogger(__name__)
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.toml")
 with open(CONFIG_PATH, "rb") as _f:
     CONFIG = tomllib.load(_f)
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+dotenv.load_dotenv(os.path.join(_PROJECT_ROOT, ".env.claude"))
 
 # Constants and defaults — all read from config.toml.
 DEFAULT_WORD_COUNT = CONFIG["digest"]["default_word_count"]
@@ -245,8 +249,7 @@ def run_gitdigest(
 def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WORD_COUNT * 2.0)) -> str:
     """Call the configured LLM provider to get a summary of the repo."""
 
-    dotenv.load_dotenv(".env.claude")
-
+    
     provider = CONFIG["llm"]["provider"]
     provider_config = CONFIG["llm"][provider]
 
@@ -259,8 +262,6 @@ def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WOR
         raise ValueError(f"{provider_config['auth_env']} must be set in environment")
 
     logger.debug("LLM provider=%s model=%s base_url=%s", provider, model, base_url)
-
-    client = OpenAI(api_key=api_token, base_url=base_url, timeout=CONFIG["llm"].get("timeout", 300))
 
     kwargs = {
         "model": model,
@@ -297,7 +298,17 @@ def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WOR
     if reasoning_effort:
         kwargs["reasoning_effort"] = reasoning_effort
 
-    response = client.chat.completions.create(**kwargs)
+    if provider == "doubleword" and provider_config.get("use_autobatcher", False):
+        from autobatcher import BatchOpenAI
+        completion_window = provider_config.get("completion_window", "1h")
+        logger.info("Using Autobatcher (completion_window=%s)", completion_window)
+        async def _call():
+            client = BatchOpenAI(api_key=api_token, base_url=base_url, completion_window=completion_window)
+            return await client.chat.completions.create(**kwargs)
+        response = asyncio.run(_call())
+    else:
+        client = OpenAI(api_key=api_token, base_url=base_url, timeout=CONFIG["llm"].get("timeout", 300))
+        response = client.chat.completions.create(**kwargs)
 
     content = response.choices[0].message.content
     if content is None:
@@ -324,8 +335,7 @@ def main():
 
     args = parser.parse_args()
 
-    dotenv.load_dotenv(".env.claude")
-
+    
     result = run_gitdigest(
         url=args.url,
         token=args.token,

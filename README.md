@@ -2,7 +2,7 @@
 
 A FastAPI-based service that ingests GitHub repositories and optionally generates AI-powered summaries using configurable LLM providers (Doubleword, OpenAI, Nebius, or any OpenAI-compatible API).
 
-**Effective date:** 2026-02-24
+**Effective date:** 2026-02-26
 
 ## Features
 
@@ -10,6 +10,8 @@ A FastAPI-based service that ingests GitHub repositories and optionally generate
 - **LLM Summarization**: Structured JSON output — summary, technologies list, and repo structure in one call
 - **Digest Triage**: Automatically trims large digests to fit within the LLM context window by dropping lowest-signal files first
 - **REST API**: Easy integration with web or mobile frontends
+- **CLI Package**: Installable as `gitdigest-pkg` and `gitdigest-serve` via `uv tool install` — callable from any directory without a bash wrapper
+- **Doubleword Autobatcher**: Optional async batch mode for the Doubleword provider — 50–80% cost saving with configurable SLA (`1h` or `24h`)
 - **Configurable**: Branch, word count, file size limits, exclusion patterns, and more via `config.toml`
 
 ## Installation
@@ -39,6 +41,22 @@ uv sync
 
 This installs all dependencies including `gitingest` (the repo cloning tool), `fastapi`, `uvicorn`, and others declared in `pyproject.toml`.
 
+### 4. Install CLI tools (optional)
+
+To use `gitdigest-pkg` and `gitdigest-serve` as system-wide commands from any directory:
+
+```bash
+uv tool install -e .
+```
+
+This creates an isolated venv under `~/.local/share/uv/tools/nebius-git-summariser/` and adds wrapper scripts to `~/.local/bin/`. The `-e` flag means code changes take effect immediately without reinstalling. If you add new entry points to `[project.scripts]` in `pyproject.toml`, reinstall with:
+
+```bash
+uv tool install -e . --reinstall
+```
+
+**Note:** If you move or rename the project folder, reinstall pointing to the new path — the editable install stores an absolute path reference.
+
 ### 4. Create your secrets file
 
 ```bash
@@ -58,10 +76,18 @@ Only the key for the active provider (set in `config.toml`) is required.
 ## Running the API
 
 ```bash
+# If CLI tools are installed (recommended):
+gitdigest-serve
+
+# Otherwise:
 uv run python -m api.main
 ```
 
-The API runs on `http://127.0.0.1:8001` (Swagger UI at `/docs`).
+By default the server listens on `0.0.0.0:8000` (Swagger UI at `/docs`). Override with:
+
+```bash
+gitdigest-serve --host 127.0.0.1 --port 8001
+```
 
 ## Configuration
 
@@ -70,6 +96,15 @@ The API runs on `http://127.0.0.1:8001` (Swagger UI at `/docs`).
 All configurable settings live in `config.toml`. No Python code changes needed to adjust defaults. The sections in the config file are digest, triage, triage.layers, logging, llm and llm.provider
 
 To add a new LLM provider, add a `[llm.your_provider]` section with `base_url`, `model`, and `auth_env`, then set `provider = "your_provider"` in `[llm]`.
+
+**Doubleword autobatcher keys** (only applies when `provider = "doubleword"`):
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `use_autobatcher` | `false` | Queue requests via Doubleword's batch API for 50–80% cost saving |
+| `completion_window` | `"1h"` | `"1h"` (faster) or `"24h"` (cheaper) |
+
+When `use_autobatcher = true`, the CLI blocks until the batch completes (polling every ~5s) then prints the result as normal. Latency is higher than synchronous calls but cost is significantly lower.
 
 ## API Endpoints
 
@@ -305,7 +340,7 @@ If gitingest changes its output format in a future version, update the tree pars
 
 1. **Add exclusion patterns** — exclude `tests/*`, `docs/*`, `examples/*`, `fixtures/*` via `exclude_patterns`
 2. **Use larger context models** — Gemini 1M+, Claude Opus/Sonnet 1M context; add as a new provider in `config.toml`
-3. **Map-reduce summarization** — chunk the digest, summarize each chunk, aggregate the results (e.g., LangChain `MapReduceDocumentsChain`)
+3. **Map-reduce summarization** — chunk the trimmed digest, send to LLM to summarize each chunk, then aggregate the results and send again to LLM. So number of LLM calls is number of chunks + 1 (e.g., LangChain `MapReduceDocumentsChain`). This could also work with the user specifying a token budget for the task eg 2M and this would determine how many chunks would be created. If parallel requests are sent to the LLM this would reduce response time but then any rate limits could work against this parallelism. A batch LLM endpoint like Doubleword could speed things up and take care of the rate limit management issues
 4. **Recursive Language Models (RLMs)** — give the LLM file exploration tools (bash, grep, find); sub-agents explore specific directories and report back to a parent agent
 5. **RAG** — embed digest chunks in a vector database (Chroma, Pinecone, pgvector), query by question
 6. **Page index** — build a searchable index with section references for targeted lookup rather than full summaries
@@ -315,11 +350,32 @@ If gitingest changes its output format in a future version, update the tree pars
 
 ## Appendix: CLI Usage
 
-A command-line wrapper is available for quick local usage without starting the API server. This is peripheral to the main use case (REST API) but useful for one-off local runs.
+A CLI tool is available for quick local usage without starting the API server. Output files are saved to a `git_summaries/` directory relative to wherever you run the command.
 
-### Setup
+### Option A — Installed package (recommended)
 
-Add the following function to your `~/.bashrc` (adjust `project_dir` to match your clone location):
+After running `uv tool install -e .` (see Installation step 4), `gitdigest-pkg` is available system-wide:
+
+```bash
+# Basic digest without LLM summary
+gitdigest-pkg -u https://github.com/owner/repo
+
+# With LLM summary (-c flag)
+gitdigest-pkg -u https://github.com/owner/repo -c
+
+# Specific branch and word count
+gitdigest-pkg -u https://github.com/owner/repo -b dev -w 1000 -c
+
+# Private repo with token
+gitdigest-pkg -u https://github.com/owner/private-repo -t ghp_your_token -c
+
+# Steer the summary
+gitdigest-pkg -u https://github.com/owner/repo -c -f "Focus on the authentication flow"
+```
+
+### Option B — Bash function (no install required)
+
+If you prefer not to install the package, add this function to your `~/.bashrc` (adjust `project_dir` to match your clone location):
 
 ```bash
 # Run from anywhere: gitdigest -u <url> [-t token] [-b branch] [-w word_count] [-c] [-m max_size]
@@ -338,19 +394,3 @@ gitdigest() {
 ```
 
 Reload your shell: `source ~/.bashrc`
-
-### Examples
-
-```bash
-# Basic digest without LLM summary
-gitdigest -u https://github.com/owner/repo
-
-# With LLM summary (-c flag)
-gitdigest -u https://github.com/owner/repo -c
-
-# Specific branch and word count
-gitdigest -u https://github.com/owner/repo -b dev -w 1000 -c
-
-# Private repo with token
-gitdigest -u https://github.com/owner/private-repo -t ghp_your_token -c
-```

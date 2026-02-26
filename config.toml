@@ -103,6 +103,8 @@ model_env = "DOUBLEWORD_MODEL"
 auth_env = "DOUBLEWORD_AUTH_TOKEN"
 context_window = 262000          # informational only — not read by code
 response_format = "json_schema"  # enforces structured JSON output via OpenAI SDK
+use_autobatcher = false          # doubleword only: queue via Autobatcher for 50-80% cost saving; results delayed by SLA
+completion_window = "1h"         # doubleword autobatcher only: "1h" or "24h" (24h is cheaper)
 
 [llm.openai]
 base_url = "https://api.openai.com/v1"
