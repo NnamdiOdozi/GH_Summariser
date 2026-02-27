@@ -57,14 +57,22 @@ app.include_router(gitdigest_router, prefix="/api/v1", tags=["GitDigest"])
 async def health_check():
     return {"status": "healthy", "service": "GITHUB_SUMMARISER_API"}
 
-def main():                                  
-    import argparse                                                                                                     
-    import uvicorn                                                                                                      
-    parser = argparse.ArgumentParser()                                                                                  
-    parser.add_argument("--port", type=int, default=8001)       
-    parser.add_argument("--host", default="0.0.0.0")                                                                    
-    args = parser.parse_args()                                                                                          
-    uvicorn.run("api.main:app", host=args.host, port=args.port) 
+def main():
+    import argparse
+    import uvicorn
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8001)
+    parser.add_argument("--host", default=None)  # None = auto from APP_ENV
+    args = parser.parse_args()
+
+    is_prod = os.getenv("APP_ENV", "dev") == "prod"
+    host = args.host or ("0.0.0.0" if is_prod else "127.0.0.1")
+
+    kwargs = {"host": host, "port": args.port, "workers": 2 if is_prod else 1}
+    if not is_prod:
+        kwargs["reload"] = True
+
+    uvicorn.run("api.main:app", **kwargs)
 
 if __name__ == "__main__":
      main()

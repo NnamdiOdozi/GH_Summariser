@@ -6,9 +6,9 @@ Wants=network-online.target
 [Service]
 User=root
 WorkingDirectory=/home/projects/GH_summariser
-Environment="PATH=/home/projects/GH_summariser/.venv/bin"
-# ExecStart=/home/projects/GH_summariser/.venv/bin/streamlit run pulse_streamlit_app.py --server.port=8520 --server.address=0.0.0.0
-ExecStart=/home/projects/GH_summariser/.venv/bin/python -m uvicorn api.main:app --host 0.0.0.0 --port 8001
+Environment="PATH=/home/projects/GH_summariser/.venv/bin:/usr/local/bin:/usr/bin"
+Environment="APP_ENV=prod"
+ExecStart=/home/projects/GH_summariser/.venv/bin/python -m api.main --port 8001
 Restart=on-failure
 RestartSec=5
 
