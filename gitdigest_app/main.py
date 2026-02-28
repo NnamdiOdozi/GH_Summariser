@@ -13,7 +13,8 @@ from urllib.parse import urlparse
 
 import dotenv
 from openai import OpenAI
-from app.triage import triage_digest
+from gitdigest_app.triage import triage_digest
+from gitdigest_app.models import DigestResult
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ def run_gitdigest(
     call_llm_api: bool = True,
     focus: str = None,
     triage: bool = True,
-) -> dict:
+) -> DigestResult:
     """Run gitingest on a GitHub URL and optionally call LLM API for summarization."""
 
     parsed = parse_github_url(url)
@@ -133,7 +134,8 @@ def run_gitdigest(
         cmd.extend(["-e", pat])
 
     logger.info("Running gitingest for %s/%s", parsed["owner"], parsed["repo"])
-    logger.debug("gitingest cmd: %s", cmd)
+    safe_cmd = [("[REDACTED]" if token and x == token else x) for x in cmd]
+    logger.debug("gitingest cmd: %s", safe_cmd)
     t0 = time.time()
     result = subprocess.run(cmd, capture_output=True, text=True)
     elapsed = time.time() - t0
@@ -239,11 +241,12 @@ def run_gitdigest(
             result_dict["summary"] = raw
 
     # Save result to JSON file for debugging/inspection
+    result = DigestResult(**result_dict)
     output_json = output_file.replace(".txt", "_llm.json")
     with open(output_json, "w") as f:
-        json.dump(result_dict, f, indent=2)
+        json.dump(result.model_dump(), f, indent=2)
 
-    return result_dict
+    return result
 
 
 def call_llm(prompt: str, digest_content: str, max_tokens: int = int(DEFAULT_WORD_COUNT * 2.0)) -> str:
@@ -348,10 +351,10 @@ def main():
         triage=not args.no_triage,
     )
 
-    print(f"Output saved to: {result['output_file']}")
+    print(f"Output saved to: {result.output_file}")
 
-    if "summary" in result:
-        print(f"\n=== SUMMARY ===\n{result['summary']}")
+    if result.summary:
+        print(f"\n=== SUMMARY ===\n{result.summary}")
 
 
 if __name__ == "__main__":

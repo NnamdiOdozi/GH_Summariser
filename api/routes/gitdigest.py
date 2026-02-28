@@ -6,23 +6,88 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field
-from app.main import run_gitdigest, DEFAULT_WORD_COUNT, DEFAULT_MAX_SIZE, OUTPUT_DIR
+from pydantic import BaseModel, Field, SecretStr
+from gitdigest_app.main import run_gitdigest, DEFAULT_WORD_COUNT, DEFAULT_MAX_SIZE, OUTPUT_DIR
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 class GitdigestRequest(BaseModel):
-    github_url: str = Field("https://github.com/NnamdiOdozi/mlx-digit-app", description="GitHub repository URL. Can include branch info (e.g., /tree/dev). If no branch is in the URL or the branch field, defaults to the repo's default branch.")
-    token: Optional[str] = Field(None, description="GitHub Personal Access Token (required only for private repos)", examples=[""])
-    branch: Optional[str] = Field(None, description="Branch override (case-sensitive). If set, takes priority over any branch in the URL. Leave empty to auto-detect from URL or use repo default.", examples=[""])
-    max_size: int = Field(DEFAULT_MAX_SIZE, description=f"Maximum file size in bytes to process (default: {DEFAULT_MAX_SIZE // 1048576}MB)")
-    word_count: int = Field(DEFAULT_WORD_COUNT, description=f"Desired summary word count (default: {DEFAULT_WORD_COUNT})")
-    call_llm_api: bool = Field(True, description="Whether to call LLM summarization API (default: True)")
-    exclude_patterns: Optional[list[str]] = Field(None, description="Glob patterns to exclude files or directories (e.g., ['*.pdf', '*.csv', 'docs/*', 'tests/*']). Defaults to common binary/data extensions.")
-    focus: Optional[str] = Field(None, description="Optional short instruction appended to the default summary prompt to steer the analysis (e.g., 'Focus on the authentication module'). See example prompts below.", examples=[""])
-    triage: bool = Field(True, description="When True (default), automatically trims the digest to fit within the LLM context window by dropping lowest-signal files first. Disable to send the full digest as-is.")
+    github_url: str = Field(
+        "https://github.com/NnamdiOdozi/mlx-digit-app",
+        description=(
+            "GitHub repository URL. Accepts HTTPS URLs, SSH URLs (git@github.com:owner/repo), "
+            "and URLs with branch paths (e.g. /tree/dev). Branch in the URL is auto-detected. "
+            "If the repo is private and no token is supplied, the request will fail with 401."
+        ),
+    )
+    token: SecretStr | None = Field(
+        None,
+        description=(
+            "GitHub Personal Access Token. Required for private repos; optional for public. "
+            "Needs 'repo' scope (classic PAT) or 'Contents: read' (fine-grained PAT). "
+            "Never logged or stored — used only for the gitingest clone step, then discarded."
+        ),
+        examples=[""],
+    )
+    branch: Optional[str] = Field(
+        None,
+        description=(
+            "Branch name override (case-sensitive). Takes priority over any branch embedded in the URL. "
+            "Leave empty to use the branch in the URL, or the repo's default branch if none is specified."
+        ),
+        examples=[""],
+    )
+    max_size: int = Field(
+        DEFAULT_MAX_SIZE,
+        description=(
+            f"Maximum file size in bytes. Files larger than this are skipped by gitingest before the digest is built. "
+            f"Default: {DEFAULT_MAX_SIZE // 1048576}MB. Reduce to speed up ingestion of repos with large files."
+        ),
+    )
+    word_count: int = Field(
+        DEFAULT_WORD_COUNT,
+        description=(
+            f"Target word count for the LLM summary (default: {DEFAULT_WORD_COUNT}). "
+            "The LLM treats this as a guide, not a hard limit. Actual output may vary by ±20%. "
+            "Only applies when call_llm_api is true."
+        ),
+    )
+    call_llm_api: bool = Field(
+        True,
+        description=(
+            "When true (default), sends the digest to the configured LLM and returns a structured summary. "
+            "When false, skips the LLM call and returns the raw digest text in the 'content' field instead of 'summary'. "
+            "Use false to inspect the digest before committing to an LLM call."
+        ),
+    )
+    exclude_patterns: Optional[list[str]] = Field(
+        None,
+        description=(
+            "Additional glob patterns to exclude from the digest, e.g. ['tests/*', 'docs/*', '*.csv']. "
+            "These are additive — they extend the built-in defaults (binaries, lockfiles, build output, etc.) "
+            "and cannot remove them. Useful for known-noisy directories specific to a given repo."
+        ),
+    )
+    focus: Optional[str] = Field(
+        None,
+        description=(
+            "Short instruction appended to the default summary prompt to steer the LLM analysis. "
+            "Examples: 'Focus on the authentication flow', 'What are the main data models?', "
+            "'How do I run this locally?'. Only applies when call_llm_api is true."
+        ),
+        examples=[""],
+    )
+    triage: bool = Field(
+        True,
+        description=(
+            "When true (default), automatically trims the digest to fit within the LLM context window "
+            "by classifying files into signal tiers and dropping the lowest-signal files first. "
+            "The response always includes a triage block showing tokens before/after and files dropped. "
+            "Set to false to send the full digest as-is — useful for debugging triage behaviour."
+        ),
+    )
 
 
 @router.post("/summarize", summary="Ingest GitHub repository for LLM summarization")
@@ -63,7 +128,7 @@ async def gitdigest_endpoint(request: GitdigestRequest):
     - "Focus on the test coverage and CI/CD setup"
     """
     # Filter out Swagger UI placeholder values
-    token = request.token if request.token and request.token != "string" else None
+    token = request.token.get_secret_value() if request.token and request.token.get_secret_value() != "string" else None
     branch = request.branch if request.branch and request.branch != "string" else None
     exclude_patterns = request.exclude_patterns
     if exclude_patterns and exclude_patterns == ["string"]:
@@ -93,22 +158,22 @@ async def gitdigest_endpoint(request: GitdigestRequest):
         response_data = {"status": "success"}
 
         if request.call_llm_api:
-            response_data["summary"] = result.get("summary", "")
-            response_data["technologies"] = result.get("technologies", [])[:12]
-            response_data["structure"] = result.get("structure", "")
+            response_data["summary"] = result.summary or ""
+            response_data["technologies"] = (result.technologies or [])[:12]
+            response_data["structure"] = result.structure or ""
         else:
-            with open(result["output_file"], "r") as f:
+            with open(result.output_file, "r") as f:
                 response_data["content"] = f.read()
 
-        response_data["branch"] = result.get("branch")
-        response_data["output_file"] = result["output_file"]
-        response_data["digest_stats"] = result["digest_stats"]
+        response_data["branch"] = result.branch
+        response_data["output_file"] = result.output_file
+        response_data["digest_stats"] = result.digest_stats.model_dump()
 
         response_data["triage"] = {
-            "applied": result.get("triage_applied", False),
-            "pre_triage_tokens": result.get("pre_triage_tokens", 0),
-            "post_triage_tokens": result.get("post_triage_tokens", 0),
-            "files_dropped_count": result.get("files_dropped_count", 0),
+            "applied": result.triage_applied or False,
+            "pre_triage_tokens": result.pre_triage_tokens or 0,
+            "post_triage_tokens": result.post_triage_tokens or 0,
+            "files_dropped_count": result.files_dropped_count or 0,
         }
 
         elapsed = time.time() - t0
@@ -232,6 +297,6 @@ async def get_prompt():
     Returns the default summary prompt that is sent to the LLM.
     The `focus` field in the POST request is appended to this prompt.
     """
-    prompt_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "app", "prompt.txt")
+    prompt_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "gitdigest_app", "prompt.txt")
     with open(prompt_path, "r") as f:
         return {"prompt": f.read()}

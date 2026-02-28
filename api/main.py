@@ -1,8 +1,23 @@
 # api/main.py
 import logging
 import os
+import re
 import tomllib
 from logging.handlers import RotatingFileHandler
+
+_TOKEN_PATTERNS = [
+    re.compile(r'("token"\s*:\s*")[^"]+(")', re.IGNORECASE),
+    re.compile(r"(token=)[^&\s]+", re.IGNORECASE),
+]
+
+class _RedactTokenFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        for pat in _TOKEN_PATTERNS:
+            msg = pat.sub(r"\1[REDACTED]\2", msg)
+        record.msg = msg
+        record.args = ()
+        return True
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +39,7 @@ os.makedirs(_log_dir, exist_ok=True)
 _max_bytes = _log_cfg.get("max_log_bytes", 150_000)   # ~1000 lines at ~150 chars/line
 _backup_count = _log_cfg.get("backup_count", 5)        # keep api.log + 5 rotated files
 
+logging.getLogger().addFilter(_RedactTokenFilter())
 logging.basicConfig(
     level=getattr(logging, _log_level, logging.INFO),
     format="%(asctime)s %(levelname)-5s %(name)s  %(message)s",

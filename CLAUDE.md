@@ -49,6 +49,25 @@
 - Use FastAPI routers to group related endpoints by domain rather than putting everything in one file.
 - Gitignore generated outputs, test artifacts, environment files, and build artifacts.
 
+## Developer Education Goals
+
+The user is actively developing their Python and Git/GitHub skills. When opportunities arise naturally in the code, point them out and briefly explain the concept. Do not force them into every piece of code, but when a pattern fits well, suggest it and explain why.
+
+### Python concepts to introduce when relevant
+- **Type annotations** — function signatures with `->` return types and parameter types; `typing` module (`Optional`, `Union`, `list[str]`); Pydantic models as an alternative to plain dicts for structured data
+- **Protocols and ABCs** — when to define an interface vs a base class; `typing.Protocol` for structural subtyping; `abc.ABC` and `@abstractmethod`
+- **Generators and iterators** — `yield`, `__iter__`/`__next__`; when a generator is more memory-efficient than building a list; `itertools`
+- **Decorators** — `@functools.wraps`, timing/logging decorators, `@property`; when a decorator reduces repetition cleanly
+- **Wrappers and context managers** — `__enter__`/`__exit__`, `contextlib.contextmanager`
+
+### Git/GitHub concepts to introduce when relevant
+- Branch strategies (feature branches, when to use them)
+- Rebasing vs merging and when each is appropriate
+- Git hooks (pre-commit, post-merge) for automation
+- GitHub Actions — extending existing workflows, adding new triggers
+- Tagging and semantic versioning for releases
+- `git bisect`, `git stash`, `git reflog` for debugging and recovery
+
 ## Available Skills
 **dw_batch:** Async batch processing using Doubleword API. Process multiple PDFs/DOCXs cost-effectively (50-85% cheaper) for non-urgent summarization, analysis, OCR, and extraction tasks. **Suggest for any token-heavy non-urgent work (10K+ tokens).**
 

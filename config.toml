@@ -105,6 +105,12 @@ context_window = 262000          # informational only — not read by code
 response_format = "json_schema"  # enforces structured JSON output via OpenAI SDK
 use_autobatcher = false          # doubleword only: queue via Autobatcher for 50-80% cost saving; results delayed by SLA
 completion_window = "1h"         # doubleword autobatcher only: "1h" or "24h" (24h is cheaper)
+# Doubleword model options:
+# model = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"   # current default
+# model = "Qwen/Qwen3.5-35B-A3B-FP8"             # high intelligence, strong price/performance
+# model = "Qwen/Qwen3-14B"                        # small, low cost
+# model = "Qwen/Qwen3.5-397B-A17B"               # most powerful, highest cost (released Feb 2026)
+# model = "openai/gpt-oss-20b"                    # low latency, 21B params, 3.6B active
 
 [llm.openai]
 base_url = "https://api.openai.com/v1"

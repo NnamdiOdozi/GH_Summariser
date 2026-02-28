@@ -16,8 +16,8 @@ dependencies = [
 
 [tool.setuptools.packages.find]
   where = ["."]
-  include = ["app*", "api*"]    
+  include = ["gitdigest_app*", "api*"]
 
 [project.scripts]                            
-  gitdigest-pkg = "app.main:main"
+  gitdigest-pkg = "gitdigest_app.main:main"
   gitdigest-serve = "api.main:main" 
