@@ -29,8 +29,8 @@ source $HOME/.cargo/env
 ### 2. Clone the repository
 
 ```bash
-git clone https://github.com/NnamdiOdozi/GH_Summariser.git ~/projects/nebius_git_summariser
-cd ~/projects/nebius_git_summariser
+git clone https://github.com/NnamdiOdozi/gitdigest.git ~/projects/gitdigest
+cd ~/projects/gitdigest
 ```
 
 ### 3. Install Python dependencies
@@ -49,7 +49,7 @@ To use `gitdigest-pkg` and `gitdigest-serve` as system-wide commands from any di
 uv tool install -e .
 ```
 
-This creates an isolated venv under `~/.local/share/uv/tools/nebius-git-summariser/` and adds wrapper scripts to `~/.local/bin/`. The `-e` flag means code changes take effect immediately without reinstalling. If you add new entry points to `[project.scripts]` in `pyproject.toml`, reinstall with:
+This creates an isolated venv under `~/.local/share/uv/tools/gitdigest/` and adds wrapper scripts to `~/.local/bin/`. The `-e` flag means code changes take effect immediately without reinstalling. If you add new entry points to `[project.scripts]` in `pyproject.toml`, reinstall with:
 
 ```bash
 uv tool install -e . --reinstall
@@ -324,7 +324,7 @@ The file count, folder count, and digest content are parsed from the raw text ou
 - Files and folders denoted by `├──` and `└──` box-drawing characters
 - Folders ending with `/`
 
-If gitingest changes its output format in a future version, update the tree parser in `app/main.py` (search for `tree_separator`). The core digest and LLM summarization would still work — only `file_count` and `folder_count` would be affected.
+If gitingest changes its output format in a future version, update the tree parser in `gitdigest_app/main.py` (search for `tree_separator`). The core digest and LLM summarization would still work — only `file_count` and `folder_count` would be affected.
 
 **On model selection:** We initially expected the ranking to follow: (1) context window size — more context means fewer files dropped; (2) code understanding capability; (3) cost. In practice, instruction-following, output consistency, and synthesis quality proved more decisive. All five models were tested on identical input (same repo, same 100K token budget, `response_format=json_schema`) on 2026-02-24. Rankings were revised on 2026-02-25 after follow-up tests on three repos spanning small (12K tokens, no triage), medium (4.2M tokens, triaged to 100K), and large (13.5M tokens, triaged to 100K).
 
@@ -380,7 +380,7 @@ If you prefer not to install the package, add this function to your `~/.bashrc` 
 ```bash
 # Run from anywhere: gitdigest -u <url> [-t token] [-b branch] [-w word_count] [-c] [-m max_size]
 gitdigest() {
-    local project_dir="$HOME/projects/nebius_git_summariser"
+    local project_dir="$HOME/projects/gitdigest"
 
     if [ -f "$project_dir/.env.claude" ]; then
         set -a
@@ -389,7 +389,7 @@ gitdigest() {
     fi
 
     export PYTHONPATH="$project_dir:$PYTHONPATH"
-    uv run --project "$project_dir" python "$project_dir/app/main.py" "$@"
+    uv run --project "$project_dir" python "$project_dir/gitdigest_app/main.py" "$@"
 }
 ```
 
