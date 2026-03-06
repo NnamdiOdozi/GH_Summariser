@@ -81,7 +81,7 @@ max_log_bytes = 150000       # rotate at ~150KB (~1000 lines at ~150 chars/line)
 backup_count = 5             # keep api.log + 5 rotated files (api.log.1 … api.log.5)
 
 [llm]
-provider = "nebius"  # "doubleword", "openai", or "nebius"
+provider = "doubleword"  # "doubleword", "openai", or "nebius"
 frequency_penalty = 0.3
 timeout = 300  # seconds
 
@@ -98,7 +98,7 @@ timeout = 300  # seconds
 
 [llm.doubleword]
 base_url = "https://api.doubleword.ai/v1"
-model = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"  # fallback; overridden by DOUBLEWORD_MODEL env var if set
+model = "Qwen/Qwen3.5-35B-A3B-FP8"  # fallback; overridden by DOUBLEWORD_MODEL env var if set
 model_env = "DOUBLEWORD_MODEL"
 auth_env = "DOUBLEWORD_AUTH_TOKEN"
 context_window = 262000          # informational only — not read by code
