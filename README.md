@@ -83,7 +83,7 @@ gitdigest-serve
 uv run python -m api.main
 ```
 
-By default the server listens on `0.0.0.0:8000` (Swagger UI at `/docs`). Override with:
+By default the server listens on `127.0.0.1:8001` in dev mode (Swagger UI at `http://127.0.0.1:8001/docs`). In production (`APP_ENV=prod`) it binds to `0.0.0.0`. Override with:
 
 ```bash
 gitdigest-serve --host 127.0.0.1 --port 8001
@@ -277,7 +277,7 @@ When `applied` is `false`, `pre_triage_tokens` and `post_triage_tokens` will be 
 
 ## Focus Prompts
 
-By default, the LLM receives a general-purpose summarization prompt (see [`app/prompt.txt`](app/prompt.txt) or call `GET /api/v1/prompt`). Steer the summary with the `focus` field:
+By default, the LLM receives a general-purpose summarization prompt (see [`gitdigest_app/prompt.txt`](gitdigest_app/prompt.txt) or call `GET /api/v1/prompt`). Steer the summary with the `focus` field:
 
 - "What does this system do at a high level?"
 - "Where does execution start and how does control flow through the system?"
